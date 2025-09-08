@@ -1,0 +1,6 @@
+---
+# 响应：监控传感器数据收集
+bool collect_success
+float32 ch4_data
+float32 temp_data
+float32 hum_data

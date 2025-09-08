@@ -1,0 +1,11 @@
+string action
+string id_task_info
+string task_name
+string task_type
+string[] monitor_points
+string create_time
+---
+# 响应
+bool name_used
+bool task_not_exist
+string id_task_info

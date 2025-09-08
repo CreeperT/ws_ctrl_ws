@@ -1,0 +1,5 @@
+# 请求：电池充电导航
+geometry_msgs/PoseStamped nav_goal  
+---
+# 响应
+bool execute_success

@@ -1,0 +1,5 @@
+bool md5_verify
+string file_name
+---
+# 响应
+bool file_name_not_exist

@@ -1,0 +1,4 @@
+---
+# 响应：臂位置查询
+float32[6] tool_pos     # 工具位置
+float32[6] joint_pos    # 关节位置

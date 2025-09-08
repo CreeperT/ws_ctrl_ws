@@ -1,0 +1,3 @@
+---
+# 响应：控制模式查询
+uint16 runtime_ctrl_mode

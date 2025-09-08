@@ -1,0 +1,4 @@
+---
+# 响应：任务执行状态查询
+bool task_execute
+string task_ticket

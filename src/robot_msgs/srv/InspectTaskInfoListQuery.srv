@@ -1,0 +1,5 @@
+string[] task_type
+---
+# 响应
+uint32 task_info_num
+robot_msgs/InspectTaskInfoSimple[] inspect_task_info_simple_list  # 更新为新.msg命名

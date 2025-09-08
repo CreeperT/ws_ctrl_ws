@@ -1,0 +1,5 @@
+string system_time
+---
+# 响应
+bool sync_time_success
+string system_time_sync

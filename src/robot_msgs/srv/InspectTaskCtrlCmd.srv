@@ -1,0 +1,10 @@
+string id_task_info
+string task_ticket
+string ctrl
+---
+# 响应
+bool task_not_exist
+bool task_instance_not_exist
+bool execute_success
+string id_task_info
+string task_ticket

@@ -1,0 +1,5 @@
+string id_task_info
+---
+# 响应
+bool task_not_exist
+bool deletion_success

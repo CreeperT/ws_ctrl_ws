@@ -1,0 +1,12 @@
+string id_task_info
+string task_ticket
+string monitor_points
+string file_name_vis
+bool md5_verify_vis
+string file_name_ir
+bool md5_verify_ir
+string file_name_3d
+bool md5_verify_3d
+---
+# 响应
+bool file_name_not_exist

@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/opt/ros/humble/include/**",
+                "/home/creepert/unitree_ros2/cyclonedds_ws/install/unitree_go/include/**",
+                "/home/creepert/unitree_ros2/cyclonedds_ws/install/unitree_api/include/**",
+                "/usr/local/include/**",
+                "${workspaceFolder}/src/websocket/include/websocket"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

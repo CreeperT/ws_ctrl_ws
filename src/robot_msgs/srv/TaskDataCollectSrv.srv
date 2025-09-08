@@ -1,0 +1,6 @@
+string id_task_info
+string task_ticket
+string monitor_points
+---
+# 响应
+bool execute_success

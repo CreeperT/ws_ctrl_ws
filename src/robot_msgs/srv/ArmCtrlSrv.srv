@@ -1,0 +1,5 @@
+# 请求：臂控制服务
+string pos_key
+---
+# 响应
+bool execute_success

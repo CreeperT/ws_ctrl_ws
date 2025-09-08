@@ -1,0 +1,4 @@
+uint16 ctrl_mode
+---
+# 响应
+bool execute_success
