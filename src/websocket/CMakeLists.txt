@@ -13,8 +13,9 @@ find_package(robot_msgs REQUIRED)
 find_package(cJSON REQUIRED)
 
 add_library(${PROJECT_NAME}_lib
-  # src/ws_msgs_manage.cpp
   src/websocket.cpp
+  src/ws_msg_manage_client.cpp
+  src/ws_msg_manage_service.cpp
 )
 
 ament_target_dependencies(${PROJECT_NAME}_lib
@@ -27,8 +28,17 @@ target_include_directories(${PROJECT_NAME}_lib PUBLIC ${cjson_INCLUDE_DIRS})
 include_directories(/usr/local/nclude/cjson)  # 根据实际情况调整路径
 target_link_libraries(${PROJECT_NAME}_lib cjson)  # 直接链接 json-c
 
-add_executable(websocket_node src/websocket_node.cpp)
+add_executable(websocket_node 
+  src/websocket_node.cpp
+  src/websocket.cpp
+)
 target_link_libraries(websocket_node ${PROJECT_NAME}_lib)
+
+add_executable(ws_msg_manage_client_node
+  src/ws_msg_manage_client_node.cpp
+  src/ws_msg_manage_client.cpp  
+)
+target_link_libraries(ws_msg_manage_client_node ${PROJECT_NAME}_lib)
 
 target_include_directories(websocket_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -42,9 +52,17 @@ ament_target_dependencies(
   "cJSON"
 )
 
+ament_target_dependencies(
+  ws_msg_manage_client_node
+  "rclcpp"
+  "std_msgs"
+  "robot_msgs"
+  "cJSON"
+)
 
 
-install(TARGETS websocket_node
+
+install(TARGETS websocket_node ws_msg_manage_client_node
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch

@@ -34,8 +34,8 @@ public:
     void WS_connect(); // 连接ws服务端
     void WS_retry_connect(); // 重连
     void WS_send(const std::string& msg); // 向ws服务端发送消息
-    void WS_receive(); // 接收ws服务端发送的消息
-
+    void WS_receive(); // 接收ws服务端发送的消息    
+    
 public:
     rclcpp::executors::MultiThreadedExecutor executor_; 
     std::thread spinner_thread_; 
