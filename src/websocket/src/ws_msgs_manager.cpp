@@ -1,11 +1,11 @@
-#include "ws_msg_manage.h"
+#include "ws_msg_manager.h"
 #include <chrono>
 
 using namespace std::placeholders;
 
 /***********************************************初始化相关***********************************************/
 
-WSmsgs_Manager_Client::WSmsgs_Manager_Client(const char* node_name) : Node(node_name)
+WSmsgs_Manager::WSmsgs_Manager(const char* node_name) : Node(node_name)
 {
     if (DeviceParamInit())
     {
@@ -15,7 +15,7 @@ WSmsgs_Manager_Client::WSmsgs_Manager_Client(const char* node_name) : Node(node_
     }
 }
 
-bool WSmsgs_Manager_Client::DeviceParamInit()
+bool WSmsgs_Manager::DeviceParamInit()
 {
     const char* homeDir = getenv("HOME");
     std::string jsonDir = homeDir;
@@ -79,7 +79,7 @@ bool WSmsgs_Manager_Client::DeviceParamInit()
     }
 }
 
-void WSmsgs_Manager_Client::NodePublisherInit()
+void WSmsgs_Manager::NodePublisherInit()
 {
     // WebSocket发送消息话题发布
     WSsend_msgs_pub = this->create_publisher<std_msgs::msg::String>("/WSmsgs_send_topic", 10);
@@ -88,15 +88,15 @@ void WSmsgs_Manager_Client::NodePublisherInit()
     MotorCtrlNormalCmd_pub = this->create_publisher<robot_msgs::msg::MotorCtrlNormal>("/MotorCtrlNormal_topic", 10);
 }
 
-void WSmsgs_Manager_Client::NodeSubscriberInit()
+void WSmsgs_Manager::NodeSubscriberInit()
 {
     // WebSocket接收与发送消息话题
     WSreceive_msgs_sub = this->create_subscription<std_msgs::msg::String>(
-        "WSmsgs_receive_topic", 10, std::bind(&WSmsgs_Manager_Client::WSmsgsReceiveCallback, this, _1)
+        "WSmsgs_receive_topic", 10, std::bind(&WSmsgs_Manager::WSmsgsReceiveCallback, this, _1)
     );
 }
 
-void WSmsgs_Manager_Client::NodeServiceClientInit()
+void WSmsgs_Manager::NodeServiceClientInit()
 {
     // 切换控制模式客户端
     ChangeCtrlModeCmd_client = this->create_client<robot_msgs::srv::ChangeCtrlModeCmd>("ChangeCtrlModeCmd_service");
@@ -108,14 +108,14 @@ void WSmsgs_Manager_Client::NodeServiceClientInit()
     // SystemTimeSyncCmd_client = this->create_client<robot_msgs::srv::SystemTimeSyncCmd>("SystemTimeSyncCmd_service");
 }
 
-void WSmsgs_Manager_Client::NodeSpinnerStartup()
+void WSmsgs_Manager::NodeSpinnerStartup()
 {
     spinner_thread_ = std::thread([this]() { rclcpp::spin(this->get_node_base_interface()); });
 }
 
 /***********************************************WS通信相关***********************************************/
 
-void WSmsgs_Manager_Client::WSmsgsReceiveCallback(const std_msgs::msg::String::SharedPtr msg)
+void WSmsgs_Manager::WSmsgsReceiveCallback(const std_msgs::msg::String::SharedPtr msg)
 {
     if (devel_mode == "debug")
     {
@@ -130,7 +130,7 @@ void WSmsgs_Manager_Client::WSmsgsReceiveCallback(const std_msgs::msg::String::S
     WSreceiveJsonParse(msg);
 }
 
-void WSmsgs_Manager_Client::WSreceiveJsonParse(const std_msgs::msg::String::SharedPtr msg)
+void WSmsgs_Manager::WSreceiveJsonParse(const std_msgs::msg::String::SharedPtr msg)
 {
     cJSON* parsed_json = cJSON_Parse(msg->data.c_str());
     if(parsed_json != NULL)
@@ -243,7 +243,7 @@ void WSmsgs_Manager_Client::WSreceiveJsonParse(const std_msgs::msg::String::Shar
     else return;
 }
 
-void WSmsgs_Manager_Client::WSsendJsonBack(const cJSON* json_fun, const cJSON* rt_info, const cJSON* rt_data)
+void WSmsgs_Manager::WSsendJsonBack(const cJSON* json_fun, const cJSON* rt_info, const cJSON* rt_data)
 {
     cJSON* WSjson_SendBack = cJSON_CreateObject();
     cJSON_AddItemReferenceToObject(WSjson_SendBack, "json_fun", (cJSON*)json_fun);
@@ -274,7 +274,7 @@ void WSmsgs_Manager_Client::WSsendJsonBack(const cJSON* json_fun, const cJSON* r
     return;
 }
 
-void WSmsgs_Manager_Client::WSsendJsonCmd(const cJSON* json_fun, const cJSON* cmd_data)
+void WSmsgs_Manager::WSsendJsonCmd(const cJSON* json_fun, const cJSON* cmd_data)
 {
     cJSON* WSjson_SendCmd = cJSON_CreateObject();
     cJSON_AddItemReferenceToObject(WSjson_SendCmd, "json_fun", (cJSON*)json_fun);
@@ -306,7 +306,7 @@ void WSmsgs_Manager_Client::WSsendJsonCmd(const cJSON* json_fun, const cJSON* cm
 
 /***********************************************错误处理相关***********************************************/
 
-void WSmsgs_Manager_Client::WrongParamProcess(const char* err_msg, const cJSON* json_fun) // 错误id：1002
+void WSmsgs_Manager::WrongParamProcess(const char* err_msg, const cJSON* json_fun) // 错误id：1002
 {
     if(json_fun == NULL)
     {
@@ -335,7 +335,7 @@ void WSmsgs_Manager_Client::WrongParamProcess(const char* err_msg, const cJSON* 
     return;
 }
 
-void WSmsgs_Manager_Client::DeviceInternalCommunicationErrorProcess(const cJSON* json_fun) // 错误id：1003
+void WSmsgs_Manager::DeviceInternalCommunicationErrorProcess(const cJSON* json_fun) // 错误id：1003
 {
     if(json_fun == NULL)
     {
@@ -364,7 +364,7 @@ void WSmsgs_Manager_Client::DeviceInternalCommunicationErrorProcess(const cJSON*
     return;
 }
 
-void WSmsgs_Manager_Client::RequestResourceNotExistProcess(const cJSON* json_fun) // 错误id：1005
+void WSmsgs_Manager::RequestResourceNotExistProcess(const cJSON* json_fun) // 错误id：1005
 {
     if(json_fun == NULL)
     {
@@ -393,7 +393,7 @@ void WSmsgs_Manager_Client::RequestResourceNotExistProcess(const cJSON* json_fun
     return;
 }
 
-void WSmsgs_Manager_Client::WrongIdDeviceProcess(const cJSON* json_fun) // 错误id：1007
+void WSmsgs_Manager::WrongIdDeviceProcess(const cJSON* json_fun) // 错误id：1007
 {
     if(json_fun == NULL)
     {
@@ -422,7 +422,7 @@ void WSmsgs_Manager_Client::WrongIdDeviceProcess(const cJSON* json_fun) // 错�
     return;
 }
 
-void WSmsgs_Manager_Client::DeviceOperationFailedProcess(const cJSON* json_fun) // 错误id：2201
+void WSmsgs_Manager::DeviceOperationFailedProcess(const cJSON* json_fun) // 错误id：2201
 {
     if(json_fun == NULL)
     {
@@ -451,7 +451,7 @@ void WSmsgs_Manager_Client::DeviceOperationFailedProcess(const cJSON* json_fun) 
     return;
 }
 
-void WSmsgs_Manager_Client::DeviceModeErrorProcess(const cJSON* json_fun) // 错误id：2203
+void WSmsgs_Manager::DeviceModeErrorProcess(const cJSON* json_fun) // 错误id：2203
 {
     if(json_fun == NULL)
     {
@@ -482,7 +482,7 @@ void WSmsgs_Manager_Client::DeviceModeErrorProcess(const cJSON* json_fun) // 错
 
 /***********************************************机器人控制相关***********************************************/
 
-void WSmsgs_Manager_Client::DeviceCtrlCmdJsonParse(const cJSON* json_fun, const char* sub_function, const cJSON* cmd_data)
+void WSmsgs_Manager::DeviceCtrlCmdJsonParse(const cJSON* json_fun, const char* sub_function, const cJSON* cmd_data)
 {
     // std::lock_guard<std::mutex> lock(json_mutex_);
     // 切换控制模式
@@ -581,7 +581,7 @@ void WSmsgs_Manager_Client::DeviceCtrlCmdJsonParse(const cJSON* json_fun, const 
     else return;
 }
 
-void WSmsgs_Manager_Client::ChangeCtrlModeCmdProcess(const cJSON* json_fun, const uint8_t target_ctrl_mode)
+void WSmsgs_Manager::ChangeCtrlModeCmdProcess(const cJSON* json_fun, const uint8_t target_ctrl_mode)
 {   
     if (target_ctrl_mode == 0 || target_ctrl_mode == 1)
     {
@@ -643,7 +643,7 @@ void WSmsgs_Manager_Client::ChangeCtrlModeCmdProcess(const cJSON* json_fun, cons
     else return;
 }
 
-void WSmsgs_Manager_Client::ChangeCtrlModeCmdSendback(const cJSON* json_fun, const uint8_t target_ctrl_mode)
+void WSmsgs_Manager::ChangeCtrlModeCmdSendback(const cJSON* json_fun, const uint8_t target_ctrl_mode)
 {
     
     if(json_fun == NULL)
@@ -677,12 +677,10 @@ void WSmsgs_Manager_Client::ChangeCtrlModeCmdSendback(const cJSON* json_fun, con
     return;
 }
 
-void WSmsgs_Manager_Client::MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctrl_value)
+void WSmsgs_Manager::MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctrl_value)
 {
     cJSON* value_action = cJSON_GetObjectItem(ctrl_value, "action");
     cJSON* value_speed = cJSON_GetObjectItem(ctrl_value, "speed");
-
-    RCLCPP_INFO(this->get_logger(), "%s", value_action->valuestring);
 
     if(value_action != NULL)
     {
@@ -707,12 +705,6 @@ void WSmsgs_Manager_Client::MotorCtrlCmdProcess(const cJSON* json_fun, const cJS
                 MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
                 DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
                 return;
-                // auto MotorCtrlNormalMsg = std::make_unique<robot_msgs::msg::MotorCtrlNormal>();
-                // MotorCtrlNormalMsg->command = "move_forward";
-                // MotorCtrlNormalMsg->run_speed = speed;
-                // MotorCtrlNormalCmd_pub->publish(std::move(MotorCtrlNormalMsg));
-                // DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
-                // return;
             }
             else if(strcmp(value_action->valuestring, "e_move_back") == 0)
             {
@@ -722,12 +714,6 @@ void WSmsgs_Manager_Client::MotorCtrlCmdProcess(const cJSON* json_fun, const cJS
                 MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
                 DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
                 return;
-                // auto MotorCtrlNormalMsg = std::make_unique<robot_msgs::msg::MotorCtrlNormal>();
-                // MotorCtrlNormalMsg->command = "move_back";
-                // MotorCtrlNormalMsg->run_speed = speed;
-                // MotorCtrlNormalCmd_pub->publish(std::move(MotorCtrlNormalMsg));
-                // DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
-                // return;
             }
             else if(strcmp(value_action->valuestring, "e_turn_left") == 0)
             {
@@ -737,12 +723,6 @@ void WSmsgs_Manager_Client::MotorCtrlCmdProcess(const cJSON* json_fun, const cJS
                 MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
                 DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
                 return;
-                // auto MotorCtrlNormalMsg = std::make_unique<robot_msgs::msg::MotorCtrlNormal>();
-                // MotorCtrlNormalMsg->command = "turn_left";
-                // MotorCtrlNormalMsg->run_speed = speed;
-                // MotorCtrlNormalCmd_pub->publish(std::move(MotorCtrlNormalMsg));
-                // DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
-                // return;
             }
             else if(strcmp(value_action->valuestring, "e_turn_right") == 0)
             {
@@ -752,12 +732,6 @@ void WSmsgs_Manager_Client::MotorCtrlCmdProcess(const cJSON* json_fun, const cJS
                 MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
                 DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
                 return;
-                // auto MotorCtrlNormalMsg = std::make_unique<robot_msgs::msg::MotorCtrlNormal>();
-                // MotorCtrlNormalMsg->command = "turn_right";
-                // MotorCtrlNormalMsg->run_speed = speed;
-                // MotorCtrlNormalCmd_pub->publish(std::move(MotorCtrlNormalMsg));
-                // DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
-                // return;
             }
             else if(strcmp(value_action->valuestring, "e_move_stop") == 0)
             {
@@ -767,12 +741,6 @@ void WSmsgs_Manager_Client::MotorCtrlCmdProcess(const cJSON* json_fun, const cJS
                 MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
                 DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
                 return;
-                // auto MotorCtrlNormalMsg = std::make_unique<robot_msgs::msg::MotorCtrlNormal>();
-                // MotorCtrlNormalMsg->command = "move_forward";
-                // MotorCtrlNormalMsg->run_speed = speed;
-                // MotorCtrlNormalCmd_pub->publish(std::move(MotorCtrlNormalMsg));
-                // DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
-                // return;
             }
             else
             {
@@ -794,7 +762,7 @@ void WSmsgs_Manager_Client::MotorCtrlCmdProcess(const cJSON* json_fun, const cJS
     }
 }
 
-void WSmsgs_Manager_Client::DeviceCtrlCmdSendback(const cJSON* json_fun, const char* ctrl_type)
+void WSmsgs_Manager::DeviceCtrlCmdSendback(const cJSON* json_fun, const char* ctrl_type)
 {
     
     if(json_fun == NULL)

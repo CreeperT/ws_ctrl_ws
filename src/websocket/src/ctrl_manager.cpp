@@ -1,9 +1,9 @@
-#include "ws_msg_manage.h"
+#include "ctrl_manager.h"
 using namespace std::placeholders;
 
 /***********************************************初始化相关***********************************************/
 
-WSmsgs_Manager_Server::WSmsgs_Manager_Server(const char* node_name) : rclcpp::Node(node_name)
+Ctrl_Manager::Ctrl_Manager(const char* node_name) : rclcpp::Node(node_name)
 {
     if(DeviceParamInit())
     {
@@ -14,7 +14,7 @@ WSmsgs_Manager_Server::WSmsgs_Manager_Server(const char* node_name) : rclcpp::No
     }
 }
 
-bool WSmsgs_Manager_Server::DeviceParamInit()
+bool Ctrl_Manager::DeviceParamInit()
 {
     // 参数初值
     ctrl_mode = 1;
@@ -84,42 +84,42 @@ bool WSmsgs_Manager_Server::DeviceParamInit()
     }
 }
 
-void WSmsgs_Manager_Server::NodePublisherInit()
+void Ctrl_Manager::NodePublisherInit()
 {
 
 }
 
-void WSmsgs_Manager_Server::NodeSubscriberInit()
+void Ctrl_Manager::NodeSubscriberInit()
 {
     // MotorCtrlNormalCmd_sub = this->create_subscription<robot_msgs::msg::MotorCtrlNormal>(
-    //     "/MotorCtrlNormal_topic", 10, std::bind(&WSmsgs_Manager_Server::MotorCtrlNormalCmdCallback, this, _1)
+    //     "/MotorCtrlNormal_topic", 10, std::bind(&Ctrl_Manager::MotorCtrlNormalCmdCallback, this, _1)
     // );
 }
 
-void WSmsgs_Manager_Server::NodeServiceServerInit()
+void Ctrl_Manager::NodeServiceServerInit()
 {
     ChangeCtrlModeCmd_server = this->create_service<robot_msgs::srv::ChangeCtrlModeCmd>(
-        "ChangeCtrlModeCmd_service", std::bind(&WSmsgs_Manager_Server::ChangeCtrlModeCmdHandle, this, _1, _2)
+        "ChangeCtrlModeCmd_service", std::bind(&Ctrl_Manager::ChangeCtrlModeCmdHandle, this, _1, _2)
     );
 
     CtrlModeQuery_server = this->create_service<robot_msgs::srv::CtrlModeQuery>(
-        "CtrlModeQuery_service", std::bind(&WSmsgs_Manager_Server::CtrlModeQueryHandle, this, _1, _2)
+        "CtrlModeQuery_service", std::bind(&Ctrl_Manager::CtrlModeQueryHandle, this, _1, _2)
     );
 }
 
-void WSmsgs_Manager_Server::NodeServiceClientInit()
+void Ctrl_Manager::NodeServiceClientInit()
+{
+    
+}
+
+void Ctrl_Manager::NodeSpinnerStartup()
 {
     spinner_thread_ = std::thread([this]() { rclcpp::spin(this->get_node_base_interface()); });
 }
 
-void WSmsgs_Manager_Server::NodeSpinnerStartup()
-{
+/***********************************************中断处理函数相关***********************************************/
 
-}
-
-/***********************************************中断函数相关***********************************************/
-
-bool WSmsgs_Manager_Server::ChangeCtrlModeCmdHandle(const robot_msgs::srv::ChangeCtrlModeCmd::Request::SharedPtr req,
+bool Ctrl_Manager::ChangeCtrlModeCmdHandle(const robot_msgs::srv::ChangeCtrlModeCmd::Request::SharedPtr req,
                                                     robot_msgs::srv::ChangeCtrlModeCmd::Response::SharedPtr res)
 {
     bool success = true;
@@ -129,7 +129,7 @@ bool WSmsgs_Manager_Server::ChangeCtrlModeCmdHandle(const robot_msgs::srv::Chang
 }
 
 
-bool WSmsgs_Manager_Server::CtrlModeQueryHandle(const robot_msgs::srv::CtrlModeQuery::Request::SharedPtr req,
+bool Ctrl_Manager::CtrlModeQueryHandle(const robot_msgs::srv::CtrlModeQuery::Request::SharedPtr req,
                                                 robot_msgs::srv::CtrlModeQuery::Response::SharedPtr res)
 {
     (void) req;
@@ -139,7 +139,8 @@ bool WSmsgs_Manager_Server::CtrlModeQueryHandle(const robot_msgs::srv::CtrlModeQ
 
 /***********************************************回调函数相关***********************************************/
 
-void WSmsgs_Manager_Server::MotorCtrlNormalCmdCallback(const robot_msgs::msg::MotorCtrlNormal::SharedPtr msg)
+void Ctrl_Manager::MotorCtrlNormalCmdCallback(const robot_msgs::msg::MotorCtrlNormal::SharedPtr msg)
 {
+    /*四足机器人的手动控制实现已放在b2_manual_ctrl这个包里*/
     (void) msg;
 }

@@ -14,8 +14,8 @@ find_package(cJSON REQUIRED)
 
 add_library(${PROJECT_NAME}_lib
   src/websocket.cpp
-  src/ws_msgs_manage_client.cpp
-  src/ws_msgs_manage_server.cpp
+  src/ws_msgs_manager.cpp
+  src/ctrl_manager.cpp
 )
 
 ament_target_dependencies(${PROJECT_NAME}_lib
@@ -34,17 +34,17 @@ add_executable(websocket_node
 )
 target_link_libraries(websocket_node ${PROJECT_NAME}_lib)
 
-add_executable(ws_msgs_manage_client_node
-  src/ws_msgs_manage_client_node.cpp
-  src/ws_msgs_manage_client.cpp  
+add_executable(ws_msgs_manager_node
+  src/ws_msgs_manager_node.cpp
+  src/ws_msgs_manager.cpp  
 )
-target_link_libraries(ws_msgs_manage_client_node ${PROJECT_NAME}_lib)
+target_link_libraries(ws_msgs_manager_node ${PROJECT_NAME}_lib)
 
-add_executable(ws_msgs_manage_server_node
-  src/ws_msgs_manage_server_node.cpp
-  src/ws_msgs_manage_server.cpp  
+add_executable(ctrl_manager_node
+  src/ctrl_manager_node.cpp
+  src/ctrl_manager.cpp  
 )
-target_link_libraries(ws_msgs_manage_server_node ${PROJECT_NAME}_lib)
+target_link_libraries(ctrl_manager_node ${PROJECT_NAME}_lib)
 
 target_include_directories(websocket_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -60,7 +60,7 @@ ament_target_dependencies(
 )
 
 ament_target_dependencies(
-  ws_msgs_manage_client_node
+  ws_msgs_manager_node
   "rclcpp"
   "std_msgs"
   "robot_msgs"
@@ -68,7 +68,7 @@ ament_target_dependencies(
 )
 
 ament_target_dependencies(
-  ws_msgs_manage_server_node
+  ctrl_manager_node
   "rclcpp"
   "std_msgs"
   "robot_msgs"
@@ -76,7 +76,7 @@ ament_target_dependencies(
 )
 
 
-install(TARGETS websocket_node ws_msgs_manage_client_node ws_msgs_manage_server_node
+install(TARGETS websocket_node ws_msgs_manager_node ctrl_manager_node
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch

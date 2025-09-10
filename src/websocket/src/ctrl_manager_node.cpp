@@ -1,4 +1,4 @@
-#include "ws_msg_manage.h"
+#include "ctrl_manager.h"
 #include <rclcpp/rclcpp.hpp>
 #include <memory>
 #include <locale.h>  // 用于 setlocale
@@ -8,7 +8,7 @@ int main(int argc, char** argv)
 
     setlocale(LC_CTYPE, "zh_CN.utf8");
 
-    auto ws_msgs_manager_server = std::make_shared<WSmsgs_Manager_Server>("ws_msgs_manager_server_node");
+    auto ws_msgs_manager_server = std::make_shared<Ctrl_Manager>("ctrl_manager_node");
     ws_msgs_manager_server->NodeSpinnerStartup();
 
     ws_msgs_manager_server->joinSpinnerThread();
