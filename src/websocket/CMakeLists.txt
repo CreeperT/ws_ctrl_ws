@@ -14,8 +14,8 @@ find_package(cJSON REQUIRED)
 
 add_library(${PROJECT_NAME}_lib
   src/websocket.cpp
-  src/ws_msg_manage_client.cpp
-  src/ws_msg_manage_service.cpp
+  src/ws_msgs_manage_client.cpp
+  src/ws_msgs_manage_server.cpp
 )
 
 ament_target_dependencies(${PROJECT_NAME}_lib
@@ -34,16 +34,23 @@ add_executable(websocket_node
 )
 target_link_libraries(websocket_node ${PROJECT_NAME}_lib)
 
-add_executable(ws_msg_manage_client_node
-  src/ws_msg_manage_client_node.cpp
-  src/ws_msg_manage_client.cpp  
+add_executable(ws_msgs_manage_client_node
+  src/ws_msgs_manage_client_node.cpp
+  src/ws_msgs_manage_client.cpp  
 )
-target_link_libraries(ws_msg_manage_client_node ${PROJECT_NAME}_lib)
+target_link_libraries(ws_msgs_manage_client_node ${PROJECT_NAME}_lib)
+
+add_executable(ws_msgs_manage_server_node
+  src/ws_msgs_manage_server_node.cpp
+  src/ws_msgs_manage_server.cpp  
+)
+target_link_libraries(ws_msgs_manage_server_node ${PROJECT_NAME}_lib)
 
 target_include_directories(websocket_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 target_compile_features(websocket_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+
 ament_target_dependencies(
   websocket_node
   "rclcpp"
@@ -53,7 +60,15 @@ ament_target_dependencies(
 )
 
 ament_target_dependencies(
-  ws_msg_manage_client_node
+  ws_msgs_manage_client_node
+  "rclcpp"
+  "std_msgs"
+  "robot_msgs"
+  "cJSON"
+)
+
+ament_target_dependencies(
+  ws_msgs_manage_server_node
   "rclcpp"
   "std_msgs"
   "robot_msgs"
@@ -61,8 +76,7 @@ ament_target_dependencies(
 )
 
 
-
-install(TARGETS websocket_node ws_msg_manage_client_node
+install(TARGETS websocket_node ws_msgs_manage_client_node ws_msgs_manage_server_node
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch

@@ -1,10 +1,11 @@
 #include "ws_msg_manage.h"
+#include <chrono>
 
 using namespace std::placeholders;
 
 /***********************************************初始化相关***********************************************/
 
-WSmsgs_Manager::WSmsgs_Manager(const char* node_name) : Node(node_name)
+WSmsgs_Manager_Client::WSmsgs_Manager_Client(const char* node_name) : Node(node_name)
 {
     if (DeviceParamInit())
     {
@@ -14,7 +15,7 @@ WSmsgs_Manager::WSmsgs_Manager(const char* node_name) : Node(node_name)
     }
 }
 
-bool WSmsgs_Manager::DeviceParamInit()
+bool WSmsgs_Manager_Client::DeviceParamInit()
 {
     const char* homeDir = getenv("HOME");
     std::string jsonDir = homeDir;
@@ -78,7 +79,7 @@ bool WSmsgs_Manager::DeviceParamInit()
     }
 }
 
-void WSmsgs_Manager::NodePublisherInit()
+void WSmsgs_Manager_Client::NodePublisherInit()
 {
     // WebSocket发送消息话题发布
     WSsend_msgs_pub = this->create_publisher<std_msgs::msg::String>("/WSmsgs_send_topic", 10);
@@ -87,15 +88,15 @@ void WSmsgs_Manager::NodePublisherInit()
     MotorCtrlNormalCmd_pub = this->create_publisher<robot_msgs::msg::MotorCtrlNormal>("/MotorCtrlNormal_topic", 10);
 }
 
-void WSmsgs_Manager::NodeSubscriberInit()
+void WSmsgs_Manager_Client::NodeSubscriberInit()
 {
     // WebSocket接收与发送消息话题
     WSreceive_msgs_sub = this->create_subscription<std_msgs::msg::String>(
-        "WSmsgs_receive_topic", 10, std::bind(&WSmsgs_Manager::WSmsgsReceiveCallback, this, _1)
+        "WSmsgs_receive_topic", 10, std::bind(&WSmsgs_Manager_Client::WSmsgsReceiveCallback, this, _1)
     );
 }
 
-void WSmsgs_Manager::NodeServiceClientInit()
+void WSmsgs_Manager_Client::NodeServiceClientInit()
 {
     // 切换控制模式客户端
     ChangeCtrlModeCmd_client = this->create_client<robot_msgs::srv::ChangeCtrlModeCmd>("ChangeCtrlModeCmd_service");
@@ -107,15 +108,14 @@ void WSmsgs_Manager::NodeServiceClientInit()
     // SystemTimeSyncCmd_client = this->create_client<robot_msgs::srv::SystemTimeSyncCmd>("SystemTimeSyncCmd_service");
 }
 
-void WSmsgs_Manager::NodeSpinnerStartup()
+void WSmsgs_Manager_Client::NodeSpinnerStartup()
 {
-    // executor_.add_node(shared_from_this());
     spinner_thread_ = std::thread([this]() { rclcpp::spin(this->get_node_base_interface()); });
 }
 
 /***********************************************WS通信相关***********************************************/
 
-void WSmsgs_Manager::WSmsgsReceiveCallback(const std_msgs::msg::String::SharedPtr msg)
+void WSmsgs_Manager_Client::WSmsgsReceiveCallback(const std_msgs::msg::String::SharedPtr msg)
 {
     if (devel_mode == "debug")
     {
@@ -130,7 +130,7 @@ void WSmsgs_Manager::WSmsgsReceiveCallback(const std_msgs::msg::String::SharedPt
     WSreceiveJsonParse(msg);
 }
 
-void WSmsgs_Manager::WSreceiveJsonParse(const std_msgs::msg::String::SharedPtr msg)
+void WSmsgs_Manager_Client::WSreceiveJsonParse(const std_msgs::msg::String::SharedPtr msg)
 {
     cJSON* parsed_json = cJSON_Parse(msg->data.c_str());
     if(parsed_json != NULL)
@@ -161,6 +161,7 @@ void WSmsgs_Manager::WSreceiveJsonParse(const std_msgs::msg::String::SharedPtr m
                                         if(strcmp(value_sub_funtion->valuestring, "ctrl") == 0 || strcmp(value_sub_funtion->valuestring, "ctrl_mode") == 0)
                                         {
                                             DeviceCtrlCmdJsonParse(value_json_fun, value_sub_funtion->valuestring, value_cmd_data);
+                                            sleep(2);
                                             cJSON_Delete(parsed_json);
                                             return;
                                         }
@@ -242,7 +243,7 @@ void WSmsgs_Manager::WSreceiveJsonParse(const std_msgs::msg::String::SharedPtr m
     else return;
 }
 
-void WSmsgs_Manager::WSsendJsonBack(const cJSON* json_fun, const cJSON* rt_info, const cJSON* rt_data)
+void WSmsgs_Manager_Client::WSsendJsonBack(const cJSON* json_fun, const cJSON* rt_info, const cJSON* rt_data)
 {
     cJSON* WSjson_SendBack = cJSON_CreateObject();
     cJSON_AddItemReferenceToObject(WSjson_SendBack, "json_fun", (cJSON*)json_fun);
@@ -273,7 +274,7 @@ void WSmsgs_Manager::WSsendJsonBack(const cJSON* json_fun, const cJSON* rt_info,
     return;
 }
 
-void WSmsgs_Manager::WSsendJsonCmd(const cJSON* json_fun, const cJSON* cmd_data)
+void WSmsgs_Manager_Client::WSsendJsonCmd(const cJSON* json_fun, const cJSON* cmd_data)
 {
     cJSON* WSjson_SendCmd = cJSON_CreateObject();
     cJSON_AddItemReferenceToObject(WSjson_SendCmd, "json_fun", (cJSON*)json_fun);
@@ -305,13 +306,18 @@ void WSmsgs_Manager::WSsendJsonCmd(const cJSON* json_fun, const cJSON* cmd_data)
 
 /***********************************************错误处理相关***********************************************/
 
-void WSmsgs_Manager::WrongParamProcess(const char* err_msg, const cJSON* json_fun) // 错误id：1002
+void WSmsgs_Manager_Client::WrongParamProcess(const char* err_msg, const cJSON* json_fun) // 错误id：1002
 {
-    cJSON* json_fun_SendBack = cJSON_CreateObject();
-    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
-    while (json_fun_SendBack == NULL)
+    if(json_fun == NULL)
     {
-        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+        RCLCPP_ERROR(this->get_logger(), "json_fun is NULL in [%s]. Cannot duplicate.", __FUNCTION__);
+        return;
+    }
+    cJSON* json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    if(json_fun_SendBack == NULL)
+    {
+        RCLCPP_ERROR(this->get_logger(), "cJSON_Duplicate failed in [%s].", __FUNCTION__);
+        return;
     }
     cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
 
@@ -329,13 +335,18 @@ void WSmsgs_Manager::WrongParamProcess(const char* err_msg, const cJSON* json_fu
     return;
 }
 
-void WSmsgs_Manager::DeviceInternalCommunicationErrorProcess(const cJSON* json_fun) // 错误id：1003
+void WSmsgs_Manager_Client::DeviceInternalCommunicationErrorProcess(const cJSON* json_fun) // 错误id：1003
 {
-    cJSON* json_fun_SendBack = cJSON_CreateObject();
-    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
-    while (json_fun_SendBack == NULL)
+    if(json_fun == NULL)
     {
-        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+        RCLCPP_ERROR(this->get_logger(), "json_fun is NULL in [%s]. Cannot duplicate.", __FUNCTION__);
+        return;
+    }
+    cJSON* json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    if(json_fun_SendBack == NULL)
+    {
+        RCLCPP_ERROR(this->get_logger(), "cJSON_Duplicate failed in [%s].", __FUNCTION__);
+        return;
     }
     cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
 
@@ -353,13 +364,18 @@ void WSmsgs_Manager::DeviceInternalCommunicationErrorProcess(const cJSON* json_f
     return;
 }
 
-void WSmsgs_Manager::RequestResourceNotExistProcess(const cJSON* json_fun) // 错误id：1005
+void WSmsgs_Manager_Client::RequestResourceNotExistProcess(const cJSON* json_fun) // 错误id：1005
 {
-    cJSON* json_fun_SendBack = cJSON_CreateObject();
-    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
-    while (json_fun_SendBack == NULL)
+    if(json_fun == NULL)
     {
-        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+        RCLCPP_ERROR(this->get_logger(), "json_fun is NULL in [%s]. Cannot duplicate.", __FUNCTION__);
+        return;
+    }
+    cJSON* json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    if(json_fun_SendBack == NULL)
+    {
+        RCLCPP_ERROR(this->get_logger(), "cJSON_Duplicate failed in [%s].", __FUNCTION__);
+        return;
     }
     cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
 
@@ -377,13 +393,18 @@ void WSmsgs_Manager::RequestResourceNotExistProcess(const cJSON* json_fun) // �
     return;
 }
 
-void WSmsgs_Manager::WrongIdDeviceProcess(const cJSON* json_fun) // 错误id：1007
+void WSmsgs_Manager_Client::WrongIdDeviceProcess(const cJSON* json_fun) // 错误id：1007
 {
-    cJSON* json_fun_SendBack = cJSON_CreateObject();
-    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
-    while (json_fun_SendBack == NULL)
+    if(json_fun == NULL)
     {
-        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+        RCLCPP_ERROR(this->get_logger(), "json_fun is NULL in [%s]. Cannot duplicate.", __FUNCTION__);
+        return;
+    }
+    cJSON* json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    if(json_fun_SendBack == NULL)
+    {
+        RCLCPP_ERROR(this->get_logger(), "cJSON_Duplicate failed in [%s].", __FUNCTION__);
+        return;
     }
     cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
 
@@ -401,13 +422,18 @@ void WSmsgs_Manager::WrongIdDeviceProcess(const cJSON* json_fun) // 错误id：1
     return;
 }
 
-void WSmsgs_Manager::DeviceOperationFailedProcess(const cJSON* json_fun) // 错误id：2201
+void WSmsgs_Manager_Client::DeviceOperationFailedProcess(const cJSON* json_fun) // 错误id：2201
 {
-    cJSON* json_fun_SendBack = cJSON_CreateObject();
-    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
-    while (json_fun_SendBack == NULL)
+    if(json_fun == NULL)
     {
-        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+        RCLCPP_ERROR(this->get_logger(), "json_fun is NULL in [%s]. Cannot duplicate.", __FUNCTION__);
+        return;
+    }
+    cJSON* json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    if(json_fun_SendBack == NULL)
+    {
+        RCLCPP_ERROR(this->get_logger(), "cJSON_Duplicate failed in [%s].", __FUNCTION__);
+        return;
     }
     cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
 
@@ -425,13 +451,18 @@ void WSmsgs_Manager::DeviceOperationFailedProcess(const cJSON* json_fun) // 错�
     return;
 }
 
-void WSmsgs_Manager::DeviceModeErrorProcess(const cJSON* json_fun) // 错误id：2203
+void WSmsgs_Manager_Client::DeviceModeErrorProcess(const cJSON* json_fun) // 错误id：2203
 {
-    cJSON* json_fun_SendBack = cJSON_CreateObject();
-    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
-    while (json_fun_SendBack == NULL)
+    if(json_fun == NULL)
     {
-        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+        RCLCPP_ERROR(this->get_logger(), "json_fun is NULL in [%s]. Cannot duplicate.", __FUNCTION__);
+        return;
+    }
+    cJSON* json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    if(json_fun_SendBack == NULL)
+    {
+        RCLCPP_ERROR(this->get_logger(), "cJSON_Duplicate failed in [%s].", __FUNCTION__);
+        return;
     }
     cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
 
@@ -451,13 +482,13 @@ void WSmsgs_Manager::DeviceModeErrorProcess(const cJSON* json_fun) // 错误id�
 
 /***********************************************机器人控制相关***********************************************/
 
-void WSmsgs_Manager::DeviceCtrlCmdJsonParse(const cJSON* json_fun, const char* sub_function, const cJSON* cmd_data)
+void WSmsgs_Manager_Client::DeviceCtrlCmdJsonParse(const cJSON* json_fun, const char* sub_function, const cJSON* cmd_data)
 {
+    // std::lock_guard<std::mutex> lock(json_mutex_);
     // 切换控制模式
     if(strcmp(sub_function, "ctrl_mode") == 0)
     {
         cJSON* value_ctrl_mode = cJSON_GetObjectItem(cmd_data, "mode");
-        RCLCPP_INFO(this->get_logger(), "json_raw:%s", cJSON_Print(value_ctrl_mode));
         if (value_ctrl_mode != NULL && cJSON_IsNumber(value_ctrl_mode))
         {
             ChangeCtrlModeCmdProcess(json_fun, value_ctrl_mode->valueint);
@@ -483,49 +514,66 @@ void WSmsgs_Manager::DeviceCtrlCmdJsonParse(const cJSON* json_fun, const char* s
             RCLCPP_INFO(this->get_logger(), "CtrlModeQuery Service not available, waiting again...");
         }
         
-        auto future = CtrlModeQuery_client->async_send_request(request,
-            [this, json_fun, cmd_data](rclcpp::Client<robot_msgs::srv::CtrlModeQuery>::SharedFuture future){
-                auto response = future.get();
-                if (response->runtime_ctrl_mode == 1)
+        cJSON* json_fun_copy = cJSON_Duplicate(json_fun, 1);
+        cJSON* cmd_data_copy = cJSON_Duplicate(cmd_data, 1);
+
+        if(json_fun_copy == NULL || cmd_data_copy == NULL)
+        {
+            RCLCPP_ERROR(this->get_logger(), "copy is null");
+            return;
+        }
+
+        auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::CtrlModeQuery>::SharedFuture>();
+
+        auto res_callback = [this, json_fun_copy, cmd_data_copy, shared_future_ptr](rclcpp::Client<robot_msgs::srv::CtrlModeQuery>::SharedFuture future)
+        {
+            *shared_future_ptr = future;
+            auto response = future.get();
+            if (response->runtime_ctrl_mode == 1)
+            {
+                cJSON* value_ctrl_type = cJSON_GetObjectItem(cmd_data_copy, "ctrl_type");
+                cJSON* value_ctrl_value = cJSON_GetObjectItem(cmd_data_copy, "ctrl_value");
+
+                if (value_ctrl_type != NULL && value_ctrl_value != NULL)
                 {
-                    
-                    cJSON* value_ctrl_type = cJSON_GetObjectItem(cmd_data, "ctrl_type");
-                    cJSON* value_ctrl_value = cJSON_GetObjectItem(cmd_data, "ctrl_value");
-
-                    if (value_ctrl_type != NULL && value_ctrl_value != NULL)
+                    // 移动平台运动控制
+                    if (strcmp(value_ctrl_type->valuestring, "e_ctrl_motor") == 0)
                     {
-                        // 移动平台运动控制
-                        if (strcmp(value_ctrl_type->valuestring, "e_ctrl_motor") == 0)
-                        {
-                            MotorCtrlCmdProcess(json_fun, value_ctrl_value);
-                            return;
-                        }
-
-                        /*else if其他设备控制，待补充*/
-                        else
-                        {
-                            WrongParamProcess("Param Error: \"ctrl_type\" does not have a correct param.", json_fun);
-                            return;
-                        }
+                        MotorCtrlCmdProcess(json_fun_copy, value_ctrl_value);
+                        return;
                     }
+
+                    /*else if其他设备控制，待补充*/
                     else
                     {
-                        WrongParamProcess("Param Error: \"ctrl_type\" or \"ctrl_value\" is NULL.", json_fun);
+                        WrongParamProcess("Param Error: \"ctrl_type\" does not have a correct param.", json_fun_copy);
                         return;
                     }
                 }
                 else
                 {
-                    DeviceModeErrorProcess(json_fun);
+                    WrongParamProcess("Param Error: \"ctrl_type\" or \"ctrl_value\" is NULL.", json_fun_copy);
                     return;
                 }
-            });
-        auto wait_result = future.wait_for(std::chrono::seconds(2));
-        if(wait_result != std::future_status::ready)
-        {
-            DeviceInternalCommunicationErrorProcess(json_fun);
-            return;
-        }
+            }
+            else
+            {
+                DeviceModeErrorProcess(json_fun_copy);
+                return;
+            }
+        };
+        
+        auto future = CtrlModeQuery_client->async_send_request(request, res_callback);
+        *shared_future_ptr = future.future;
+        auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
+            [this, json_fun_copy, shared_future_ptr](){
+                if (shared_future_ptr->valid() && 
+                    shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
+                {
+                    DeviceInternalCommunicationErrorProcess(json_fun_copy);
+                    return;
+                }
+            }); 
     }
 
     /*else if其他指令，待补充*/
@@ -533,13 +581,12 @@ void WSmsgs_Manager::DeviceCtrlCmdJsonParse(const cJSON* json_fun, const char* s
     else return;
 }
 
-void WSmsgs_Manager::ChangeCtrlModeCmdProcess(const cJSON* json_fun, const uint8_t target_ctrl_mode)
-{
+void WSmsgs_Manager_Client::ChangeCtrlModeCmdProcess(const cJSON* json_fun, const uint8_t target_ctrl_mode)
+{   
     if (target_ctrl_mode == 0 || target_ctrl_mode == 1)
     {
         auto request = std::make_shared<robot_msgs::srv::ChangeCtrlModeCmd::Request>();
         request->ctrl_mode = target_ctrl_mode;
-
         while (!ChangeCtrlModeCmd_client->wait_for_service(std::chrono::seconds(1)))
         {
             if (!rclcpp::ok()) {
@@ -548,36 +595,70 @@ void WSmsgs_Manager::ChangeCtrlModeCmdProcess(const cJSON* json_fun, const uint8
             }
             RCLCPP_INFO(this->get_logger(), "ChangeCtrlModeCmd Service not available, waiting again...");
         }
-        auto future = ChangeCtrlModeCmd_client->async_send_request(request,
-            [this, json_fun, target_ctrl_mode](rclcpp::Client<robot_msgs::srv::ChangeCtrlModeCmd>::SharedFuture future){
+
+        cJSON* json_fun_copy = cJSON_Duplicate(json_fun, 1);
+        if(json_fun_copy == NULL)
+        {
+            RCLCPP_ERROR(this->get_logger(), "copy is null");
+            return;
+        }
+
+        auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ChangeCtrlModeCmd>::SharedFuture>();
+
+        auto res_callback = [this, json_fun_copy, target_ctrl_mode, shared_future_ptr](rclcpp::Client<robot_msgs::srv::ChangeCtrlModeCmd>::SharedFuture future)
+        {
+            *shared_future_ptr = future;
+            if(json_fun_copy != NULL)
+            {                    
                 auto response = future.get();
                 if (response->execute_success)
                 {
-                    ChangeCtrlModeCmdSendback(json_fun, target_ctrl_mode);
+                    ChangeCtrlModeCmdSendback(json_fun_copy, target_ctrl_mode);
+                    RCLCPP_INFO(this->get_logger(), "res->succuss is true");
                 }
                 else
                 {
-                    DeviceOperationFailedProcess(json_fun);
+                    DeviceOperationFailedProcess(json_fun_copy);
                 }
-            });
-        auto wait_result = future.wait_for(std::chrono::seconds(2));
-        if(wait_result != std::future_status::ready)
-        {
-            DeviceInternalCommunicationErrorProcess(json_fun);
-            return;
-        }
+            }
+            else
+            {
+                RCLCPP_ERROR(this->get_logger(), "json_fun is NULL");
+                return;
+            }
+        };
+
+        auto future = ChangeCtrlModeCmd_client->async_send_request(request, res_callback);
+        *shared_future_ptr = future.future;
+        auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
+            [this, json_fun_copy, shared_future_ptr](){
+                if (shared_future_ptr->valid() && 
+                    shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
+                {
+                    DeviceInternalCommunicationErrorProcess(json_fun_copy);
+                    return;
+                }
+            }); 
     }
     else return;
 }
 
-void WSmsgs_Manager::ChangeCtrlModeCmdSendback(const cJSON* json_fun, const uint8_t target_ctrl_mode)
+void WSmsgs_Manager_Client::ChangeCtrlModeCmdSendback(const cJSON* json_fun, const uint8_t target_ctrl_mode)
 {
-    cJSON* json_fun_SendBack = cJSON_CreateObject();
-    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
-    while (json_fun_SendBack == NULL)
+    
+    if(json_fun == NULL)
     {
-        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+        RCLCPP_ERROR(this->get_logger(), "json_fun is NULL in [%s]. Cannot duplicate.", __FUNCTION__);
+        return;
     }
+    
+    cJSON* json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    if(json_fun_SendBack == NULL)
+    {
+        RCLCPP_ERROR(this->get_logger(), "cJSON_Duplicate failed in [%s].", __FUNCTION__);
+        return;
+    }
+
     cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
 
     cJSON* rt_info_SendBack = cJSON_CreateObject();
@@ -596,10 +677,12 @@ void WSmsgs_Manager::ChangeCtrlModeCmdSendback(const cJSON* json_fun, const uint
     return;
 }
 
-void WSmsgs_Manager::MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctrl_value)
+void WSmsgs_Manager_Client::MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctrl_value)
 {
     cJSON* value_action = cJSON_GetObjectItem(ctrl_value, "action");
     cJSON* value_speed = cJSON_GetObjectItem(ctrl_value, "speed");
+
+    RCLCPP_INFO(this->get_logger(), "%s", value_action->valuestring);
 
     if(value_action != NULL)
     {
@@ -616,7 +699,7 @@ void WSmsgs_Manager::MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctr
 
         if(value_action != NULL)
         {
-            if(strcmp(value_action->string, "e_move_forward") == 0)
+            if(strcmp(value_action->valuestring, "e_move_forward") == 0)
             {
                 robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
                 MotorCtrlNormalMsg.command = "move_forward";
@@ -631,7 +714,7 @@ void WSmsgs_Manager::MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctr
                 // DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
                 // return;
             }
-            else if(strcmp(value_action->string, "e_move_back") == 0)
+            else if(strcmp(value_action->valuestring, "e_move_back") == 0)
             {
                 robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
                 MotorCtrlNormalMsg.command = "move_back";
@@ -646,7 +729,7 @@ void WSmsgs_Manager::MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctr
                 // DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
                 // return;
             }
-            else if(strcmp(value_action->string, "e_turn_left") == 0)
+            else if(strcmp(value_action->valuestring, "e_turn_left") == 0)
             {
                 robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
                 MotorCtrlNormalMsg.command = "turn_left";
@@ -661,7 +744,7 @@ void WSmsgs_Manager::MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctr
                 // DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
                 // return;
             }
-            else if(strcmp(value_action->string, "e_turn_right") == 0)
+            else if(strcmp(value_action->valuestring, "e_turn_right") == 0)
             {
                 robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
                 MotorCtrlNormalMsg.command = "turn_right";
@@ -676,7 +759,7 @@ void WSmsgs_Manager::MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctr
                 // DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
                 // return;
             }
-            else if(strcmp(value_action->string, "e_move_stop") == 0)
+            else if(strcmp(value_action->valuestring, "e_move_stop") == 0)
             {
                 robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
                 MotorCtrlNormalMsg.command = "move_stop";
@@ -711,13 +794,19 @@ void WSmsgs_Manager::MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctr
     }
 }
 
-void WSmsgs_Manager::DeviceCtrlCmdSendback(const cJSON* json_fun, const char* ctrl_type)
+void WSmsgs_Manager_Client::DeviceCtrlCmdSendback(const cJSON* json_fun, const char* ctrl_type)
 {
-    cJSON* json_fun_SendBack = cJSON_CreateObject();
-    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
-    while (json_fun_SendBack == NULL)
+    
+    if(json_fun == NULL)
     {
-        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+        RCLCPP_ERROR(this->get_logger(), "json_fun is NULL in [%s]. Cannot duplicate.", __FUNCTION__);
+        return;
+    }
+    cJSON* json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    if(json_fun_SendBack == NULL)
+    {
+        RCLCPP_ERROR(this->get_logger(), "cJSON_Duplicate failed in [%s].", __FUNCTION__);
+        return;
     }
     cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
 
