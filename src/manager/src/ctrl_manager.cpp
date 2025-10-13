@@ -11,6 +11,8 @@ Ctrl_Manager::Ctrl_Manager(const char* node_name) : rclcpp::Node(node_name)
         NodeSubscriberInit();
         NodeServiceServerInit();
         NodeServiceClientInit();
+
+        HeartbeatBag_timer = this->create_wall_timer(std::chrono::seconds(1), std::bind(&Ctrl_Manager::RobotHeartbeatBagPub, this));
     }
 }
 
@@ -86,7 +88,7 @@ bool Ctrl_Manager::DeviceParamInit()
 
 void Ctrl_Manager::NodePublisherInit()
 {
-
+    HeartbeatBag_pub = this->create_publisher<robot_msgs::msg::HeartbeatBag>("/HeartbeatBag_topic", 10);
 }
 
 void Ctrl_Manager::NodeSubscriberInit()
@@ -139,8 +141,42 @@ bool Ctrl_Manager::CtrlModeQueryHandle(const robot_msgs::srv::CtrlModeQuery::Req
 
 /***********************************************回调函数相关***********************************************/
 
-void Ctrl_Manager::MotorCtrlNormalCmdCallback(const robot_msgs::msg::MotorCtrlNormal::SharedPtr msg)
+// void Ctrl_Manager::MotorCtrlNormalCmdCallback(const robot_msgs::msg::MotorCtrlNormal::SharedPtr msg)
+// {
+//     /*四足机器人的手动控制实现已放在b2_manual_ctrl这个包里*/
+// }
+
+void Ctrl_Manager::RobotHeartbeatBagPub()
 {
-    /*四足机器人的手动控制实现已放在b2_manual_ctrl这个包里*/
-    (void) msg;
+    {
+        time_t now = time(NULL);
+        struct tm localt;
+        localtime_r(&now, &localt);
+        char time_buf[64];
+        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
+        RCLCPP_INFO(this->get_logger(), "[%s] RobotHeartbeatBagPub Thread Start!", time_buf);
+    }
+    
+    // 仅供调试用
+    auto heartbeat_msg = std::make_shared<robot_msgs::msg::HeartbeatBag>();
+
+    battery_percent = 80;
+    runtime_pos_id_track = "模拟轨道";
+    runtime_pos_track_pos = 1234;
+    ctrl_mode = 1;
+    runtime_status = 1;
+    charge_status = 0;
+    error_code = 0000;
+
+    heartbeat_msg->runtime_battery_percent = battery_percent;
+    heartbeat_msg->runtime_track_id = runtime_pos_id_track;
+    heartbeat_msg->runtime_track_pos = runtime_pos_track_pos;
+    heartbeat_msg->runtime_ctrl_mode = ctrl_mode;
+    heartbeat_msg->runtime_task_ticket = "模拟票据";
+    heartbeat_msg->runtime_status = runtime_status;
+    heartbeat_msg->runtime_charge_status = charge_status;
+    heartbeat_msg->runtime_timestamp = std::time(nullptr);
+    heartbeat_msg->runtime_error_code = error_code;
+
+    HeartbeatBag_pub->publish(*heartbeat_msg);
 }

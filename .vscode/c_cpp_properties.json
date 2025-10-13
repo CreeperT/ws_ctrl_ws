@@ -8,7 +8,7 @@
                 "/home/creepert/unitree_ros2/cyclonedds_ws/install/unitree_go/include/**",
                 "/home/creepert/unitree_ros2/cyclonedds_ws/install/unitree_api/include/**",
                 "/usr/local/include/**",
-                "${workspaceFolder}/src/websocket/include/websocket"
+                "/home/creepert/ws_ctrl_ws/src/manager/include/manager/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

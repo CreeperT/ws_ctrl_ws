@@ -10,11 +10,11 @@
 
 ## 问题3：无论通信是否成功，均会触发错误处理函数DeviceInternalCommunicationErrorProcess
 **原因：** wait_for函数阻塞当前线程，与客户端的异步处理逻辑有冲突，且判断条件为
->wait_for(std::chrono::seconds(1)) != std::future_status::ready
+>`wait_for(std::chrono::seconds(1)) != std::future_status::ready`
 
 可能因为其他原因误判  
 **解决：** 使用了一个定时器来处理通信超时等待错误，同时将判断条件改为
->wait_for(std::chrono::seconds(1)) == std::future_status::timeout
+>`wait_for(std::chrono::seconds(1)) == std::future_status::timeout`
 
 ## 问题4：有很多cJSON对象没有判断是否为空
 

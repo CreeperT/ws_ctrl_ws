@@ -12,9 +12,11 @@
 #include <std_msgs/msg/float32.hpp>
 
 #include "robot_msgs/msg/motor_ctrl_normal.hpp" // 控制机器人移动msg
+#include "robot_msgs/msg/motor_ctrlto_pos.hpp" // 控制机器人点到点导航msg
 #include "robot_msgs/srv/ctrl_mode_query.hpp" // 查询机器人模式srv
 #include "robot_msgs/srv/change_ctrl_mode_cmd.hpp" // 切换机器人模式srv
 #include "robot_msgs/srv/system_time_sync_cmd.hpp" // 设备时间校准srv
+#include "robot_msgs/msg/heartbeat_bag.hpp" // 机器人心跳包
 
 class WSmsgs_Manager : public rclcpp::Node
 {
@@ -34,7 +36,7 @@ public:
     void WSsendJsonBack(const cJSON* json_fun, const cJSON* rt_info, const cJSON* rt_data);
     void WSsendJsonCmd(const cJSON* json_fun, const cJSON* cmd_data);
     // void WSsendJsonUpload(const cJSON* json_fun, const cJSON* up_data);
-    // void WSsendJsonHeartbeatBag(const cJSON* json_fun, const cJSON* heartbeat_bag);
+    void WSsendJsonHeartbeatBag(const cJSON* json_fun, const cJSON* heartbeat_bag);
 
     // 错误处理
     void WrongParamProcess(const char* err_msg, const cJSON* json_fun); // 1002
@@ -42,14 +44,14 @@ public:
     void RequestResourceNotExistProcess(const cJSON* json_fun); // 1005
     void WrongIdDeviceProcess(const cJSON* json_fun); // 1007
     void DeviceOperationFailedProcess(const cJSON* json_fun); // 2201
-    // void DeviceNotSupportProcess(const cJSON* json_fun); // 2202
+    void DeviceNotSupportProcess(const cJSON* json_fun); // 2202
     void DeviceModeErrorProcess(const cJSON* json_fun); // 2203
-    // void DeleteTaskFromDeviceFailProcess(const cJSON* json_fun); // 2601
-    // void SendTask2DeviceFailProcess(const cJSON* json_fun); // 2602
-    // void TaskNotExistProcess(const cJSON* json_fun); // 2603
-    // void TaskInstanceNotExistProcess(const cJSON* json_fun); // 2604
-    // void TaskNameExistProcess(const cJSON* json_fun); // 2605
-    // void TaskPlanNotExistProcess(const cJSON* json_fun); // 2606
+    void DeleteTaskFromDeviceFailProcess(const cJSON* json_fun); // 2601
+    void SendTask2DeviceFailProcess(const cJSON* json_fun); // 2602
+    void TaskNotExistProcess(const cJSON* json_fun); // 2603
+    void TaskInstanceNotExistProcess(const cJSON* json_fun); // 2604
+    void TaskNameExistProcess(const cJSON* json_fun); // 2605
+    void TaskPlanNotExistProcess(const cJSON* json_fun); // 2606
 
     // 机器人控制
     void DeviceCtrlCmdJsonParse(const cJSON* json_fun, const char* sub_function, const cJSON* cmd_data);
@@ -57,6 +59,9 @@ public:
     void MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctrl_value);
     void ChangeCtrlModeCmdSendback(const cJSON* json_fun, const uint8_t target_ctrl_mode);
     void DeviceCtrlCmdSendback(const cJSON* json_fun, const char* ctrl_type);
+
+    // 机器人心跳包
+    void HeartbeatBagCallback(const robot_msgs::msg::HeartbeatBag::SharedPtr msg);
 
     // 系统时间校准
     // void SystemTimeSyncCmdProcess(const cJSON* json_fun, const cJSON* cmd_data);
@@ -84,8 +89,12 @@ private:
 
     // 机器人控制
     rclcpp::Publisher<robot_msgs::msg::MotorCtrlNormal>::SharedPtr MotorCtrlNormalCmd_pub;
+    rclcpp::Publisher<robot_msgs::msg::MotorCtrltoPos>::SharedPtr MotorCtrltoPosCmd_pub;
     rclcpp::Client<robot_msgs::srv::ChangeCtrlModeCmd>::SharedPtr ChangeCtrlModeCmd_client;
     rclcpp::Client<robot_msgs::srv::CtrlModeQuery>::SharedPtr CtrlModeQuery_client;
+
+    // 机器人心跳包
+    rclcpp::Subscription<robot_msgs::msg::HeartbeatBag>::SharedPtr HeartbeatBag_sub;
 
     // 设备时间校准
     rclcpp::Client<robot_msgs::srv::SystemTimeSyncCmd>::SharedPtr SystemTimeSyncCmd_client;

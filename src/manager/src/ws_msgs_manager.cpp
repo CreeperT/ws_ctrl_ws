@@ -1,7 +1,10 @@
 #include "ws_msg_manager.h"
 #include <chrono>
 
-using namespace std::placeholders;
+using std::placeholders::_1;
+using std::placeholders::_2;
+using std::placeholders::_3;
+using std::placeholders::_4;
 
 /***********************************************初始化相关***********************************************/
 
@@ -94,6 +97,11 @@ void WSmsgs_Manager::NodeSubscriberInit()
     WSreceive_msgs_sub = this->create_subscription<std_msgs::msg::String>(
         "WSmsgs_receive_topic", 10, std::bind(&WSmsgs_Manager::WSmsgsReceiveCallback, this, _1)
     );
+
+    // 心跳包话题订阅
+    HeartbeatBag_sub = this->create_subscription<robot_msgs::msg::HeartbeatBag>(
+        "HeartbeatBag_topic", 10, std::bind(&WSmsgs_Manager::HeartbeatBagCallback, this, _1)
+    );
 }
 
 void WSmsgs_Manager::NodeServiceClientInit()
@@ -158,7 +166,7 @@ void WSmsgs_Manager::WSreceiveJsonParse(const std_msgs::msg::String::SharedPtr m
                                     if(value_sub_funtion != NULL)
                                     {
                                         // 机器人控制相关，待补充
-                                        if(strcmp(value_sub_funtion->valuestring, "ctrl") == 0 || strcmp(value_sub_funtion->valuestring, "ctrl_mode") == 0)
+                                        if(strcmp(value_sub_funtion->valuestring, "control") == 0 || strcmp(value_sub_funtion->valuestring, "control_mode") == 0)
                                         {
                                             DeviceCtrlCmdJsonParse(value_json_fun, value_sub_funtion->valuestring, value_cmd_data);
                                             sleep(2);
@@ -214,9 +222,9 @@ void WSmsgs_Manager::WSreceiveJsonParse(const std_msgs::msg::String::SharedPtr m
                         return;
                     }
                 }
-                else if(strcmp(value_type->valuestring, "client_rt") == 0) // 客户端返回消息
+                else if(strcmp(value_type->valuestring, "server_rt") == 0) // 服务端返回消息
                 {
-                    /*客户端返回消息逻辑，待补充*/
+                    /*服务端返回消息逻辑，待补充*/
                     cJSON_Delete(parsed_json);
                     return;
                 }
@@ -304,9 +312,39 @@ void WSmsgs_Manager::WSsendJsonCmd(const cJSON* json_fun, const cJSON* cmd_data)
     return;
 }
 
+void WSmsgs_Manager::WSsendJsonHeartbeatBag(const cJSON* json_fun, const cJSON* heartbeat_bag)
+{
+    cJSON* WSjson_HeartbeatBag = cJSON_CreateObject();
+    cJSON_AddItemReferenceToObject(WSjson_HeartbeatBag, "json_fun", (cJSON*)json_fun);
+    cJSON_AddItemReferenceToObject(WSjson_HeartbeatBag, "heartbeat_bag", (cJSON*)heartbeat_bag);
+
+    auto WSjson_HeartbeatBag_str = std_msgs::msg::String();
+    char* temp_str = cJSON_Print(WSjson_HeartbeatBag);
+
+    if (!temp_str)
+    {
+        time_t now = time(NULL);
+        struct tm localt;
+        localtime_r(&now, &localt);
+        char time_buf[64];
+        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
+
+        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] WSsendJsonHeartbeatBag(): cJSON_Print() error!");
+    }
+    else
+    {
+        WSjson_HeartbeatBag_str.data = temp_str;
+        WSsend_msgs_pub->publish(WSjson_HeartbeatBag_str);
+        free(temp_str);
+    }
+
+    cJSON_Delete(WSjson_HeartbeatBag);
+    return;
+}
+
 /***********************************************错误处理相关***********************************************/
 
-void WSmsgs_Manager::WrongParamProcess(const char* err_msg, const cJSON* json_fun) // 错误id：1002
+void WSmsgs_Manager::WrongParamProcess(const char* err_msg, const cJSON* json_fun) // 错误id：1002 参数错误
 {
     if(json_fun == NULL)
     {
@@ -335,7 +373,7 @@ void WSmsgs_Manager::WrongParamProcess(const char* err_msg, const cJSON* json_fu
     return;
 }
 
-void WSmsgs_Manager::DeviceInternalCommunicationErrorProcess(const cJSON* json_fun) // 错误id：1003
+void WSmsgs_Manager::DeviceInternalCommunicationErrorProcess(const cJSON* json_fun) // 错误id：1003 设备内部通信错误
 {
     if(json_fun == NULL)
     {
@@ -364,7 +402,7 @@ void WSmsgs_Manager::DeviceInternalCommunicationErrorProcess(const cJSON* json_f
     return;
 }
 
-void WSmsgs_Manager::RequestResourceNotExistProcess(const cJSON* json_fun) // 错误id：1005
+void WSmsgs_Manager::RequestResourceNotExistProcess(const cJSON* json_fun) // 错误id：1005 请求的资源不存在
 {
     if(json_fun == NULL)
     {
@@ -393,7 +431,7 @@ void WSmsgs_Manager::RequestResourceNotExistProcess(const cJSON* json_fun) // �
     return;
 }
 
-void WSmsgs_Manager::WrongIdDeviceProcess(const cJSON* json_fun) // 错误id：1007
+void WSmsgs_Manager::WrongIdDeviceProcess(const cJSON* json_fun) // 错误id：1007 请求设备id错误
 {
     if(json_fun == NULL)
     {
@@ -422,7 +460,7 @@ void WSmsgs_Manager::WrongIdDeviceProcess(const cJSON* json_fun) // 错误id：1
     return;
 }
 
-void WSmsgs_Manager::DeviceOperationFailedProcess(const cJSON* json_fun) // 错误id：2201
+void WSmsgs_Manager::DeviceOperationFailedProcess(const cJSON* json_fun) // 错误id：2201 设备操作失败
 {
     if(json_fun == NULL)
     {
@@ -451,7 +489,31 @@ void WSmsgs_Manager::DeviceOperationFailedProcess(const cJSON* json_fun) // 错�
     return;
 }
 
-void WSmsgs_Manager::DeviceModeErrorProcess(const cJSON* json_fun) // 错误id：2203
+void WSmsgs_Manager::DeviceNotSupportProcess(const cJSON* json_fun) // 错误id：2202 设备不支持该操作
+{
+    cJSON* json_fun_SendBack = cJSON_CreateObject();
+    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    while (json_fun_SendBack == NULL)
+    {
+        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    }
+    cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
+
+    cJSON* rt_info_SendBack = cJSON_CreateObject();
+    cJSON_AddNumberToObject(rt_info_SendBack, "code", 2202);
+    cJSON_AddStringToObject(rt_info_SendBack, "msg", "Device is not supported");
+
+    cJSON* rt_data_SendBack = cJSON_CreateObject();
+
+    WSsendJsonBack(json_fun_SendBack, rt_info_SendBack, rt_data_SendBack);
+
+    cJSON_Delete(json_fun_SendBack);
+    cJSON_Delete(rt_info_SendBack);
+    cJSON_Delete(rt_data_SendBack);
+    return;
+}
+
+void WSmsgs_Manager::DeviceModeErrorProcess(const cJSON* json_fun) // 错误id：2203 设备控制模式错误
 {
     if(json_fun == NULL)
     {
@@ -480,13 +542,156 @@ void WSmsgs_Manager::DeviceModeErrorProcess(const cJSON* json_fun) // 错误id�
     return;
 }
 
+void WSmsgs_Manager::DeleteTaskFromDeviceFailProcess(const cJSON* json_fun) // 错误id：2601 从设备删除任务失败
+{
+    cJSON* json_fun_SendBack = cJSON_CreateObject();
+    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    while (json_fun_SendBack == NULL)
+    {
+        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    }
+    cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
+
+    cJSON* rt_info_SendBack = cJSON_CreateObject();
+    cJSON_AddNumberToObject(rt_info_SendBack, "code", 2601);
+    cJSON_AddStringToObject(rt_info_SendBack, "msg", "Delete task from device failed");
+
+    cJSON* rt_data_SendBack = cJSON_CreateObject();
+
+    WSsendJsonBack(json_fun_SendBack, rt_info_SendBack, rt_data_SendBack);
+
+    cJSON_Delete(json_fun_SendBack);
+    cJSON_Delete(rt_info_SendBack);
+    cJSON_Delete(rt_data_SendBack);
+    return;
+}
+
+void WSmsgs_Manager::SendTask2DeviceFailProcess(const cJSON* json_fun) // 错误id：2602 任务下发失败
+{
+    cJSON* json_fun_SendBack = cJSON_CreateObject();
+    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    while (json_fun_SendBack == NULL)
+    {
+        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    }
+    cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
+
+    cJSON* rt_info_SendBack = cJSON_CreateObject();
+    cJSON_AddNumberToObject(rt_info_SendBack, "code", 2602);
+    cJSON_AddStringToObject(rt_info_SendBack, "msg", "Send task to device failed");
+
+    cJSON* rt_data_SendBack = cJSON_CreateObject();
+
+    WSsendJsonBack(json_fun_SendBack, rt_info_SendBack, rt_data_SendBack);
+
+    cJSON_Delete(json_fun_SendBack);
+    cJSON_Delete(rt_info_SendBack);
+    cJSON_Delete(rt_data_SendBack);
+    return;
+}
+
+void WSmsgs_Manager::TaskNotExistProcess(const cJSON* json_fun) // 错误id：2603 任务不存在
+{
+    cJSON* json_fun_SendBack = cJSON_CreateObject();
+    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    while (json_fun_SendBack == NULL)
+    {
+        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    }
+    cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
+
+    cJSON* rt_info_SendBack = cJSON_CreateObject();
+    cJSON_AddNumberToObject(rt_info_SendBack, "code", 2603);
+    cJSON_AddStringToObject(rt_info_SendBack, "msg", "Task not exist");
+
+    cJSON* rt_data_SendBack = cJSON_CreateObject();
+
+    WSsendJsonBack(json_fun_SendBack, rt_info_SendBack, rt_data_SendBack);
+
+    cJSON_Delete(json_fun_SendBack);
+    cJSON_Delete(rt_info_SendBack);
+    cJSON_Delete(rt_data_SendBack);
+    return;
+}
+
+void WSmsgs_Manager::TaskInstanceNotExistProcess(const cJSON* json_fun) // 错误id：2604 任务实例不存在
+{
+    cJSON* json_fun_SendBack = cJSON_CreateObject();
+    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    while (json_fun_SendBack == NULL)
+    {
+        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    }
+    cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
+
+    cJSON* rt_info_SendBack = cJSON_CreateObject();
+    cJSON_AddNumberToObject(rt_info_SendBack, "code", 2604);
+    cJSON_AddStringToObject(rt_info_SendBack, "msg", "Task instance not exist");
+
+    cJSON* rt_data_SendBack = cJSON_CreateObject();
+
+    WSsendJsonBack(json_fun_SendBack, rt_info_SendBack, rt_data_SendBack);
+
+    cJSON_Delete(json_fun_SendBack);
+    cJSON_Delete(rt_info_SendBack);
+    cJSON_Delete(rt_data_SendBack);
+    return;
+}
+
+void WSmsgs_Manager::TaskNameExistProcess(const cJSON* json_fun) // 错误id：2605 任务名称已存在
+{
+    cJSON* json_fun_SendBack = cJSON_CreateObject();
+    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    while (json_fun_SendBack == NULL)
+    {
+        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    }
+    cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
+
+    cJSON* rt_info_SendBack = cJSON_CreateObject();
+    cJSON_AddNumberToObject(rt_info_SendBack, "code", 2605);
+    cJSON_AddStringToObject(rt_info_SendBack, "msg", "Task name already exist");
+
+    cJSON* rt_data_SendBack = cJSON_CreateObject();
+
+    WSsendJsonBack(json_fun_SendBack, rt_info_SendBack, rt_data_SendBack);
+
+    cJSON_Delete(json_fun_SendBack);
+    cJSON_Delete(rt_info_SendBack);
+    cJSON_Delete(rt_data_SendBack);
+    return;
+}
+
+void WSmsgs_Manager::TaskPlanNotExistProcess(const cJSON* json_fun) // 错误id：2606 任务计划不存在
+{
+    cJSON* json_fun_SendBack = cJSON_CreateObject();
+    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    while (json_fun_SendBack == NULL)
+    {
+        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    }
+    cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
+
+    cJSON* rt_info_SendBack = cJSON_CreateObject();
+    cJSON_AddNumberToObject(rt_info_SendBack, "code", 2606);
+    cJSON_AddStringToObject(rt_info_SendBack, "msg", "Task plan not exist");
+
+    cJSON* rt_data_SendBack = cJSON_CreateObject();
+
+    WSsendJsonBack(json_fun_SendBack, rt_info_SendBack, rt_data_SendBack);
+
+    cJSON_Delete(json_fun_SendBack);
+    cJSON_Delete(rt_info_SendBack);
+    cJSON_Delete(rt_data_SendBack);
+    return;
+}
+
 /***********************************************机器人控制相关***********************************************/
 
 void WSmsgs_Manager::DeviceCtrlCmdJsonParse(const cJSON* json_fun, const char* sub_function, const cJSON* cmd_data)
 {
-    // std::lock_guard<std::mutex> lock(json_mutex_);
     // 切换控制模式
-    if(strcmp(sub_function, "ctrl_mode") == 0)
+    if(strcmp(sub_function, "control_mode") == 0)
     {
         cJSON* value_ctrl_mode = cJSON_GetObjectItem(cmd_data, "mode");
         if (value_ctrl_mode != NULL && cJSON_IsNumber(value_ctrl_mode))
@@ -502,7 +707,7 @@ void WSmsgs_Manager::DeviceCtrlCmdJsonParse(const cJSON* json_fun, const char* s
     }
 
     // 后台手动遥控
-    else if(strcmp(sub_function, "ctrl") == 0)
+    else if(strcmp(sub_function, "control") == 0)
     {
         auto request = std::make_shared<robot_msgs::srv::CtrlModeQuery::Request>();
         while (!CtrlModeQuery_client->wait_for_service(std::chrono::seconds(1)))
@@ -691,8 +896,7 @@ void WSmsgs_Manager::MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctr
         }
         else
         {
-            WrongParamProcess("Param Error: \"speed\" is NULL.", json_fun);
-            return;
+            speed = 0.5; // 默认速度
         }
 
         if(value_action != NULL)
@@ -737,10 +941,35 @@ void WSmsgs_Manager::MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctr
             {
                 robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
                 MotorCtrlNormalMsg.command = "move_stop";
-                MotorCtrlNormalMsg.run_speed = speed;
+                MotorCtrlNormalMsg.run_speed = 0;
                 MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
                 DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
                 return;
+            }
+            else if(strcmp(value_action->valuestring, "e_runto_position") == 0)
+            {
+                cJSON* value_position = cJSON_GetObjectItem(ctrl_value, "position");
+                if(value_position != nullptr)
+                {
+                    cJSON* value_id_track = cJSON_GetObjectItem(value_position, "id_track");
+                    cJSON* value_track_pos = cJSON_GetObjectItem(value_position, "track_pos");
+
+                    if(value_id_track != nullptr && value_track_pos != nullptr)
+                    {
+                        robot_msgs::msg::MotorCtrltoPos MotorCtrltoPosMsg;
+                        MotorCtrltoPosMsg.command = "runto_position";
+                        MotorCtrltoPosMsg.track_id = value_id_track->valuestring;
+                        MotorCtrltoPosMsg.track_pos = value_track_pos->valuedouble;
+                        MotorCtrltoPosMsg.run_speed = speed;
+                        MotorCtrltoPosCmd_pub->publish(MotorCtrltoPosMsg);
+                        DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
+                        return;
+                    }
+                }
+                else
+                {
+                    WrongParamProcess("Param Error: \"position\" does not have a correct param.", json_fun);
+                }
             }
             else
             {
@@ -763,8 +992,7 @@ void WSmsgs_Manager::MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctr
 }
 
 void WSmsgs_Manager::DeviceCtrlCmdSendback(const cJSON* json_fun, const char* ctrl_type)
-{
-    
+{    
     if(json_fun == NULL)
     {
         RCLCPP_ERROR(this->get_logger(), "json_fun is NULL in [%s]. Cannot duplicate.", __FUNCTION__);
@@ -791,5 +1019,36 @@ void WSmsgs_Manager::DeviceCtrlCmdSendback(const cJSON* json_fun, const char* ct
     cJSON_Delete(json_fun_SendBack);
     cJSON_Delete(rt_info_SendBack);
     cJSON_Delete(rt_data_SendBack);
+    return;
+}
+
+/***********************************************机器人心跳包***********************************************/
+void WSmsgs_Manager::HeartbeatBagCallback(const robot_msgs::msg::HeartbeatBag::SharedPtr msg)
+{
+    cJSON* json_fun_HeartbeatBag = cJSON_CreateObject();
+    cJSON_AddStringToObject(json_fun_HeartbeatBag, "type", "robot_heartbeat_bag");
+
+    cJSON* heartbeat_bag = cJSON_CreateObject();
+    cJSON_AddStringToObject(heartbeat_bag, "id_device", id_device.c_str());
+    cJSON_AddNumberToObject(heartbeat_bag, "e_battery_percent", msg->runtime_battery_percent);
+    cJSON* runtime_position = cJSON_CreateObject();
+    cJSON_AddStringToObject(runtime_position, "id_track", msg->runtime_track_id.c_str());
+    cJSON_AddNumberToObject(runtime_position, "track_pos", msg->runtime_track_pos);
+    cJSON_AddItemReferenceToObject(heartbeat_bag, "e_runtime_position", runtime_position);
+    cJSON_AddNumberToObject(heartbeat_bag, "e_ctrl_mode", msg->runtime_ctrl_mode);
+    cJSON_AddNumberToObject(heartbeat_bag, "e_runtime_status", msg->runtime_status);
+    if (!msg->runtime_task_ticket.empty())
+    {
+        cJSON_AddStringToObject(heartbeat_bag, "task_ticket", msg->runtime_task_ticket.c_str());
+    }
+    cJSON_AddNumberToObject(heartbeat_bag, "e_charge_status", msg->runtime_charge_status);
+    cJSON_AddNumberToObject(heartbeat_bag, "e_timestamp", msg->runtime_timestamp);
+    cJSON_AddNumberToObject(heartbeat_bag, "e_error_code", msg->runtime_error_code);
+
+    WSsendJsonHeartbeatBag(json_fun_HeartbeatBag, heartbeat_bag);
+
+    cJSON_Delete(json_fun_HeartbeatBag);
+    cJSON_Delete(heartbeat_bag);
+    cJSON_Delete(runtime_position);
     return;
 }
