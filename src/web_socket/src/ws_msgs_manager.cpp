@@ -89,6 +89,7 @@ void WSmsgs_Manager::NodePublisherInit()
 
     // 移动平台运动控制话题发布
     MotorCtrlNormalCmd_pub = this->create_publisher<robot_msgs::msg::MotorCtrlNormal>("/MotorCtrlNormal_topic", 10);
+    MotorCtrltoPosCmd_pub = this->create_publisher<robot_msgs::msg::MotorCtrltoPos>("/MotorCtrltoPos_topic", 10);
 }
 
 void WSmsgs_Manager::NodeSubscriberInit()
@@ -113,12 +114,15 @@ void WSmsgs_Manager::NodeServiceClientInit()
     CtrlModeQuery_client = this->create_client<robot_msgs::srv::CtrlModeQuery>("CtrlModeQuery_service");
 
     // 设备时间校准客户端
-    // SystemTimeSyncCmd_client = this->create_client<robot_msgs::srv::SystemTimeSyncCmd>("SystemTimeSyncCmd_service");
+    SystemTimeSyncCmd_client = this->create_client<robot_msgs::srv::SystemTimeSyncCmd>("SystemTimeSyncCmd_service");
 }
 
 void WSmsgs_Manager::NodeSpinnerStartup()
 {
-    spinner_thread_ = std::thread([this]() { rclcpp::spin(this->get_node_base_interface()); });
+    executor_.add_node(shared_from_this());
+    spinner_thread_ = std::thread([this]() { executor_.spin(); });
+    spinner_thread_.join();
+    // spinner_thread_ = std::thread([this]() { rclcpp::spin(this->get_node_base_interface()); });
 }
 
 /***********************************************WS通信相关***********************************************/
@@ -820,10 +824,12 @@ void WSmsgs_Manager::ChangeCtrlModeCmdProcess(const cJSON* json_fun, const uint8
                 {
                     ChangeCtrlModeCmdSendback(json_fun_copy, target_ctrl_mode);
                     RCLCPP_INFO(this->get_logger(), "res->succuss is true");
+                    return;
                 }
                 else
                 {
                     DeviceOperationFailedProcess(json_fun_copy);
+                    return;
                 }
             }
             else
@@ -887,102 +893,103 @@ void WSmsgs_Manager::MotorCtrlCmdProcess(const cJSON* json_fun, const cJSON* ctr
     cJSON* value_action = cJSON_GetObjectItem(ctrl_value, "action");
     cJSON* value_speed = cJSON_GetObjectItem(ctrl_value, "speed");
 
-    if(value_action != NULL)
+    if(value_action != nullptr)
     {
         float speed = -10; // -10表示服务器发送指令中speed为空，使用机器人上设定的默认值
-        if(value_speed != NULL)
+        if(value_speed != nullptr)
         {
-            speed = value_speed->valuedouble;
+            speed = value_speed->valuedouble * 0.01; // speed单位m/s，value_speed单位cm/s
         }
         else
         {
-            speed = 0.5; // 默认速度
+            speed = 0.5; // 默认速度0.5m/s
         }
-
-        if(value_action != NULL)
+        
+        if(strcmp(value_action->valuestring, "e_move_forward") == 0)
         {
-            if(strcmp(value_action->valuestring, "e_move_forward") == 0)
+            robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
+            MotorCtrlNormalMsg.command = "move_forward";
+            MotorCtrlNormalMsg.run_speed = speed;
+            MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
+            DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
+            return;
+        }
+        else if(strcmp(value_action->valuestring, "e_move_back") == 0)
+        {
+            robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
+            MotorCtrlNormalMsg.command = "move_back";
+            MotorCtrlNormalMsg.run_speed = speed;
+            MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
+            DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
+            return;
+        }
+        else if(strcmp(value_action->valuestring, "e_turn_left") == 0)
+        {
+            robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
+            MotorCtrlNormalMsg.command = "turn_left";
+            MotorCtrlNormalMsg.run_speed = speed;
+            MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
+            DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
+            return;
+        }
+        else if(strcmp(value_action->valuestring, "e_turn_right") == 0)
+        {
+            robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
+            MotorCtrlNormalMsg.command = "turn_right";
+            MotorCtrlNormalMsg.run_speed = speed;
+            MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
+            DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
+            return;
+        }
+        else if(strcmp(value_action->valuestring, "e_move_stop") == 0)
+        {
+            robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
+            MotorCtrlNormalMsg.command = "move_stop";
+            MotorCtrlNormalMsg.run_speed = 0;
+            MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
+            DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
+            return;
+        }
+        else if(strcmp(value_action->valuestring, "e_runto_position") == 0)
+        {
+            cJSON* value_position = cJSON_GetObjectItem(ctrl_value, "position");
+            if(value_position != nullptr)
             {
-                robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
-                MotorCtrlNormalMsg.command = "move_forward";
-                MotorCtrlNormalMsg.run_speed = speed;
-                MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
-                DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
-                return;
-            }
-            else if(strcmp(value_action->valuestring, "e_move_back") == 0)
-            {
-                robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
-                MotorCtrlNormalMsg.command = "move_back";
-                MotorCtrlNormalMsg.run_speed = speed;
-                MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
-                DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
-                return;
-            }
-            else if(strcmp(value_action->valuestring, "e_turn_left") == 0)
-            {
-                robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
-                MotorCtrlNormalMsg.command = "turn_left";
-                MotorCtrlNormalMsg.run_speed = speed;
-                MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
-                DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
-                return;
-            }
-            else if(strcmp(value_action->valuestring, "e_turn_right") == 0)
-            {
-                robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
-                MotorCtrlNormalMsg.command = "turn_right";
-                MotorCtrlNormalMsg.run_speed = speed;
-                MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
-                DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
-                return;
-            }
-            else if(strcmp(value_action->valuestring, "e_move_stop") == 0)
-            {
-                robot_msgs::msg::MotorCtrlNormal MotorCtrlNormalMsg;
-                MotorCtrlNormalMsg.command = "move_stop";
-                MotorCtrlNormalMsg.run_speed = 0;
-                MotorCtrlNormalCmd_pub->publish(MotorCtrlNormalMsg);
-                DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
-                return;
-            }
-            else if(strcmp(value_action->valuestring, "e_runto_position") == 0)
-            {
-                cJSON* value_position = cJSON_GetObjectItem(ctrl_value, "position");
-                if(value_position != nullptr)
-                {
-                    cJSON* value_id_track = cJSON_GetObjectItem(value_position, "id_track");
-                    cJSON* value_track_pos = cJSON_GetObjectItem(value_position, "track_pos");
+                cJSON* value_id_track = cJSON_GetObjectItem(value_position, "id_track");
+                cJSON* value_track_pos = cJSON_GetObjectItem(value_position, "track_pos");
 
-                    if(value_id_track != nullptr && value_track_pos != nullptr)
-                    {
-                        robot_msgs::msg::MotorCtrltoPos MotorCtrltoPosMsg;
-                        MotorCtrltoPosMsg.command = "runto_position";
-                        MotorCtrltoPosMsg.track_id = value_id_track->valuestring;
-                        MotorCtrltoPosMsg.track_pos = value_track_pos->valuedouble;
-                        MotorCtrltoPosMsg.run_speed = speed;
-                        MotorCtrltoPosCmd_pub->publish(MotorCtrltoPosMsg);
-                        DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
-                        return;
-                    }
-                }
-                else
+                if(value_id_track != nullptr && value_track_pos != nullptr)
                 {
-                    WrongParamProcess("Param Error: \"position\" does not have a correct param.", json_fun);
+                    robot_msgs::msg::MotorCtrltoPos MotorCtrltoPosMsg;
+                    MotorCtrltoPosMsg.command = "runto_position";
+                    MotorCtrltoPosMsg.track_id = value_id_track->valuestring;
+                    MotorCtrltoPosMsg.track_pos = value_track_pos->valueint;
+                    MotorCtrltoPosMsg.run_speed = speed;
+                    MotorCtrltoPosCmd_pub->publish(MotorCtrltoPosMsg);
+                    DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
+                    return;
                 }
             }
             else
             {
-                WrongParamProcess("Param Error: \"action\" dose not have a correct param.", json_fun);
-                return;
+                WrongParamProcess("Param Error: \"position\" does not have a correct param.", json_fun);
             }
+        }   
+        else if(strcmp(value_action->valuestring, "e_go_home") == 0)
+        {
+            robot_msgs::msg::MotorCtrltoPos MotorCtrltoPosMsg;
+            MotorCtrltoPosMsg.command = "go_home";
+            MotorCtrltoPosMsg.track_id = "home";
+            MotorCtrltoPosMsg.track_pos = 0;
+            MotorCtrltoPosMsg.run_speed = speed;
+            MotorCtrltoPosCmd_pub->publish(MotorCtrltoPosMsg);
+            DeviceCtrlCmdSendback(json_fun, "e_ctrl_motor");
         }
         else
         {
             WrongParamProcess("Param Error: \"action\" is NULL.", json_fun);
             return;
         }
-
     }
     else
     {
@@ -1050,5 +1057,96 @@ void WSmsgs_Manager::HeartbeatBagCallback(const robot_msgs::msg::HeartbeatBag::S
     cJSON_Delete(json_fun_HeartbeatBag);
     cJSON_Delete(heartbeat_bag);
     cJSON_Delete(runtime_position);
+    return;
+}
+
+/***********************************************系统时间校准***********************************************/
+void WSmsgs_Manager::SystemTimeSyncCmdProcess(const cJSON* json_fun, const cJSON* cmd_data)
+{
+    cJSON* value_system_time = cJSON_GetObjectItem(cmd_data, "system_time");
+    if(value_system_time != nullptr)
+    {
+        auto request = std::make_shared<robot_msgs::srv::SystemTimeSyncCmd::Request>();
+        request->system_time = value_system_time->valuestring;
+        while (!SystemTimeSyncCmd_client->wait_for_service(std::chrono::seconds(1)))
+        {
+            if (!rclcpp::ok()) {
+                RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service.");
+                return;
+            }
+            RCLCPP_INFO(this->get_logger(), "SystemTimeSyncCmd Service not available, waiting again...");
+        }
+        cJSON* json_fun_copy = cJSON_Duplicate(json_fun, 1);
+        if(json_fun_copy == nullptr)
+        {
+            RCLCPP_ERROR(this->get_logger(), "copy is null");
+            return;
+        }
+        auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::SystemTimeSyncCmd>::SharedFuture>();
+        auto res_callback = [this, json_fun_copy, shared_future_ptr](rclcpp::Client<robot_msgs::srv::SystemTimeSyncCmd>::SharedFuture future)
+        {
+            *shared_future_ptr = future;
+            if(json_fun_copy != nullptr)
+            {
+                auto response = future.get();
+                if(response->sync_time_success)
+                {
+                    SystemTimeSyncCmdSendback(json_fun_copy, response->system_time_sync.c_str());
+                    return;
+                }
+                else
+                {
+                    DeviceOperationFailedProcess(json_fun_copy);
+                    return;
+                }
+            }
+            else
+            {
+                RCLCPP_ERROR(this->get_logger(), "json_fun is null");
+                return;
+            }
+        };
+        auto future = SystemTimeSyncCmd_client->async_send_request(request, res_callback);
+        *shared_future_ptr = future.future;
+        auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
+            [this, json_fun_copy, shared_future_ptr](){
+                if(shared_future_ptr->valid() && 
+                   shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
+                {
+                    DeviceInternalCommunicationErrorProcess(json_fun_copy);
+                    return;
+                }
+            });
+    }
+    else
+    {
+        WrongParamProcess("Param Error: \"system_time\" is null", json_fun);
+        return;
+    }
+}
+
+void WSmsgs_Manager::SystemTimeSyncCmdSendback(const cJSON* json_fun, const char* system_time_sync)
+{
+    cJSON* json_fun_SendBack = cJSON_CreateObject();
+    json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    while (json_fun_SendBack == NULL)
+    {
+        json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    }
+    cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
+
+    cJSON* rt_info_SendBack = cJSON_CreateObject();
+    cJSON_AddNumberToObject(rt_info_SendBack, "code", 1000);
+    cJSON_AddStringToObject(rt_info_SendBack, "msg", "ok");
+
+    cJSON* rt_data_SendBack = cJSON_CreateObject();
+    cJSON_AddStringToObject(rt_data_SendBack, "id_device", id_device.c_str());
+    cJSON_AddStringToObject(rt_data_SendBack, "system_time", system_time_sync);
+
+    WSsendJsonBack(json_fun_SendBack, rt_info_SendBack, rt_data_SendBack);
+
+    cJSON_Delete(json_fun_SendBack);
+    cJSON_Delete(rt_info_SendBack);
+    cJSON_Delete(rt_data_SendBack);
     return;
 }

@@ -64,8 +64,8 @@ public:
     void HeartbeatBagCallback(const robot_msgs::msg::HeartbeatBag::SharedPtr msg);
 
     // 系统时间校准
-    // void SystemTimeSyncCmdProcess(const cJSON* json_fun, const cJSON* cmd_data);
-    // void SystemTimeSyncCmdSendback(const cJSON* json_fun, const char* system_time_sync);
+    void SystemTimeSyncCmdProcess(const cJSON* json_fun, const cJSON* cmd_data);
+    void SystemTimeSyncCmdSendback(const cJSON* json_fun, const char* system_time_sync);
 
     // 机器人设备相关信息
     std::string id_device;
@@ -100,6 +100,7 @@ private:
     rclcpp::Client<robot_msgs::srv::SystemTimeSyncCmd>::SharedPtr SystemTimeSyncCmd_client;
 
     // Spin逻辑
+    rclcpp::executors::MultiThreadedExecutor executor_;
     std::thread spinner_thread_;
 };
 

@@ -12,7 +12,10 @@ Ctrl_Manager::Ctrl_Manager(const char* node_name) : rclcpp::Node(node_name)
         NodeServiceServerInit();
         NodeServiceClientInit();
 
-        HeartbeatBag_timer = this->create_wall_timer(std::chrono::seconds(1), std::bind(&Ctrl_Manager::RobotHeartbeatBagPub, this));
+        std::thread RobotHeartbeatBagPub_thread([this](){
+            HeartbeatBag_timer = this->create_wall_timer(std::chrono::seconds(10), std::bind(&Ctrl_Manager::RobotHeartbeatBagPub, this));
+        });
+        RobotHeartbeatBagPub_thread.detach();
     }
 }
 

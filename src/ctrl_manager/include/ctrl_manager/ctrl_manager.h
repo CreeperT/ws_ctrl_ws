@@ -77,7 +77,7 @@ private:
     // 机器人心跳包
     rclcpp::Publisher<robot_msgs::msg::HeartbeatBag>::SharedPtr HeartbeatBag_pub;
     rclcpp::TimerBase::SharedPtr HeartbeatBag_timer;
-    
+    rclcpp::CallbackGroup::SharedPtr reentrant_callback_group;
 
     // Spin逻辑
     std::thread spinner_thread_;

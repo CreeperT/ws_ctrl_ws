@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(manager)
+project(web_socket)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -15,7 +15,6 @@ find_package(cJSON REQUIRED)
 add_library(${PROJECT_NAME}_lib
   src/websocket.cpp
   src/ws_msgs_manager.cpp
-  src/ctrl_manager.cpp
 )
 
 ament_target_dependencies(${PROJECT_NAME}_lib
@@ -40,12 +39,6 @@ add_executable(ws_msgs_manager_node
 )
 target_link_libraries(ws_msgs_manager_node ${PROJECT_NAME}_lib)
 
-add_executable(ctrl_manager_node
-  src/ctrl_manager_node.cpp
-  src/ctrl_manager.cpp  
-)
-target_link_libraries(ctrl_manager_node ${PROJECT_NAME}_lib)
-
 target_include_directories(websocket_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
@@ -67,21 +60,8 @@ ament_target_dependencies(
   "cJSON"
 )
 
-ament_target_dependencies(
-  ctrl_manager_node
-  "rclcpp"
-  "std_msgs"
-  "robot_msgs"
-  "cJSON"
-)
-
-
-install(TARGETS websocket_node ws_msgs_manager_node ctrl_manager_node
+install(TARGETS websocket_node ws_msgs_manager_node
   DESTINATION lib/${PROJECT_NAME})
-
-install(DIRECTORY launch
-  DESTINATION share/${PROJECT_NAME}
-)
 
 install(DIRECTORY include/
   DESTINATION include/

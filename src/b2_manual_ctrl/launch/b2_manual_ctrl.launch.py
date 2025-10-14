@@ -23,20 +23,23 @@ def generate_launch_description():
 
     # 1.运行websocket
     action_ws_node = Node(
-        package="websocket",
-        executable="websocket_node"
+        package="web_socket",
+        executable="websocket_node",
+        prefix="gnome-terminal --title='websocket node' --"
     )
 
     # 2.运行ws_msgs_manager
     action_ws_msgs_manager_node = Node(
-        package="websocket",
-        executable="ws_msgs_manager_node"
+        package="web_socket",
+        executable="ws_msgs_manager_node",
+        prefix="gnome-terminal --title='ws_msgs_manager node' --"
     )
 
     # 3.运行ctrl_manager
     action_ctrl_manager_node = Node(
-        package="websocket",
-        executable="ctrl_manager_node"
+        package="ctrl_manager",
+        executable="ctrl_manager_node",
+        prefix="gnome-terminal --title='ctrl_manager node' --"
     )
 
     # 4.运行消息转化节点
