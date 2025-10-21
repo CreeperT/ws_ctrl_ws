@@ -34,7 +34,17 @@ public:
     void WS_connect(); // 连接ws服务端
     void WS_retry_connect(); // 重连
     void WS_send(const std::string& msg); // 向ws服务端发送消息
-    void WS_receive(); // 接收ws服务端发送的消息    
+    void WS_receive(); // 接收ws服务端发送的消息  
+    
+    inline std::string getCurrentTimeStr()
+    {
+        time_t now = time(NULL);
+        struct tm localt;
+        localtime_r(&now, &localt);
+        char time_buf[64];
+        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
+        return time_buf;
+    }
     
 public:
     rclcpp::executors::MultiThreadedExecutor executor_; 

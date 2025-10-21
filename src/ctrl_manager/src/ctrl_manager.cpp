@@ -1,5 +1,8 @@
 #include "ctrl_manager.h"
-using namespace std::placeholders;
+using std::placeholders::_1;
+using std::placeholders::_2;
+using std::placeholders::_3;
+using std::placeholders::_4;
 
 /***********************************************初始化相关***********************************************/
 

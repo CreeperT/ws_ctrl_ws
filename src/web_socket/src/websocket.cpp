@@ -25,13 +25,7 @@ bool WebSocket_Client::DeviceParamInit()
     std::ifstream DeviceParamFile(jsonDir.c_str());
     if (!DeviceParamFile)
     {
-        time_t now = time(NULL);
-        struct tm localt;
-        localtime_r(&now, &localt);
-        char time_buf[64];
-        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] Can't open device param file!");
+        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Can't open device param file!");
         return false;
     }
 
@@ -58,26 +52,14 @@ bool WebSocket_Client::DeviceParamInit()
         }
         else
         {
-            time_t now = time(NULL);
-            struct tm localt;
-            localtime_r(&now, &localt);
-            char time_buf[64];
-            strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] Device param file error!");
+            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Device param file error!");
             cJSON_Delete(value_device_param);
             return false;
         }
     }
     else
     {
-        time_t now = time(NULL);
-        struct tm localt;
-        localtime_r(&now, &localt);
-        char time_buf[64];
-        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] Device param file error!");
+        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Device param file error!");
         return false;
     }
 }
@@ -124,24 +106,11 @@ void WebSocket_Client::WS_connect()
 
         // 握手，连接到 WebSocket 服务器
         ws_.handshake(host_, param_);
-
-        time_t now = time(NULL);
-        struct tm localt;
-        localtime_r(&now, &localt);
-        char time_buf[64];
-        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-        RCLCPP_INFO_STREAM(this->get_logger(), "[" << time_buf << "] Connected to WebSocket server: " << host_ << ":" << port_);
+        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Connected to WebSocket server: " << host_ << ":" << port_);
     }
     catch (const std::exception& e)
     {
-        time_t now = time(NULL);
-        struct tm localt;
-        localtime_r(&now, &localt);
-        char time_buf[64];
-        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] Connection failed: " << e.what());
+        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Connection failed: " << e.what());
         WS_retry_connect();
     }
 }
@@ -155,13 +124,7 @@ void WebSocket_Client::WS_retry_connect()
     {
         while (retry_count < max_retries)
         {
-            time_t now = time(NULL);
-            struct tm localt;
-            localtime_r(&now, &localt);
-            char time_buf[64];
-            strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-            RCLCPP_INFO_STREAM(this->get_logger(), "[" << time_buf << "] Attempting to reconnect... (" << retry_count + 1 << "/" << max_retries << ")");
+            RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Attempting to reconnect... (" << retry_count + 1 << "/" << max_retries << ")");
 
             std::this_thread::sleep_for(std::chrono::seconds(5));  // 等待 5 秒再重连
 
@@ -170,37 +133,19 @@ void WebSocket_Client::WS_retry_connect()
                 WS_connect();
                 if (ws_.is_open())
                 {
-                    time_t now = time(NULL);
-                    struct tm localt;
-                    localtime_r(&now, &localt);
-                    char time_buf[64];
-                    strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-                    RCLCPP_INFO_STREAM(this->get_logger(), "[" << time_buf << "] Reconnected to WebSocket server.");
+                    RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Reconnected to WebSocket server.");
                     return;
                 }
             }
             catch (const std::exception& e)
             {
-                time_t now = time(NULL);
-                struct tm localt;
-                localtime_r(&now, &localt);
-                char time_buf[64];
-                strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] Reconnection failed: " << e.what());
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Reconnection failed: " << e.what());
             }
 
             retry_count++;
         }
 
-        time_t now = time(NULL);
-        struct tm localt;
-        localtime_r(&now, &localt);
-        char time_buf[64];
-        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] Failed to reconnect after " << max_retries << " attempts.");
+        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Failed to reconnect after " << max_retries << " attempts.");
     }
 }
 
@@ -211,24 +156,12 @@ void WebSocket_Client::WS_send(const std::string& msg)
         ws_.write(net::buffer(msg));
         if (devel_mode == "debug")
         {
-            time_t now = time(NULL);
-            struct tm localt;
-            localtime_r(&now, &localt);
-            char time_buf[64];
-            strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-            RCLCPP_INFO_STREAM(this->get_logger(), "[" << time_buf << "] Sended message: " << msg);
+            RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Sended message: " << msg);
         }
     }
     catch (const std::exception& e)
     {
-        time_t now = time(NULL);
-        struct tm localt;
-        localtime_r(&now, &localt);
-        char time_buf[64];
-        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] Failed to send message: " << e.what());
+        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Failed to send message: " << e.what());
         WS_retry_connect();
     }
 }
@@ -241,13 +174,7 @@ void WebSocket_Client::WS_receive()
         ws_.read(buffer);
         if (devel_mode == "debug")
         {
-            time_t now = time(NULL);
-            struct tm localt;
-            localtime_r(&now, &localt);
-            char time_buf[64];
-            strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-            RCLCPP_INFO_STREAM(this->get_logger(), "[" << time_buf << "] Received message: " << beast::buffers_to_string(buffer.data()));
+            RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Received message: " << beast::buffers_to_string(buffer.data()));
         }
         auto WSmsgs_receive = std::make_shared<std_msgs::msg::String>();
         WSmsgs_receive->data = beast::buffers_to_string(buffer.data());
@@ -255,13 +182,7 @@ void WebSocket_Client::WS_receive()
     }
     catch (const std::exception& e)
     {
-        time_t now = time(NULL);
-        struct tm localt;
-        localtime_r(&now, &localt);
-        char time_buf[64];
-        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] Failed to receive message: " << e.what());
+        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Failed to receive message: " << e.what());
         WS_retry_connect();
     }
 }

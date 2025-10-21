@@ -27,13 +27,7 @@ bool WSmsgs_Manager::DeviceParamInit()
     std::ifstream DeviceParamFile(jsonDir.c_str());
     if (!DeviceParamFile)
     {
-        time_t now = time(NULL);
-        struct tm localt;
-        localtime_r(&now, &localt);
-        char time_buf[64];
-        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] Can't open device param file!");
+        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Can't open device param file!");
         return false;
     }
 
@@ -58,26 +52,14 @@ bool WSmsgs_Manager::DeviceParamInit()
         }
         else
         {
-            time_t now = time(NULL);
-            struct tm localt;
-            localtime_r(&now, &localt);
-            char time_buf[64];
-            strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] Device param error!");
+            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Device param error!");
             cJSON_Delete(value_device_param);
             return false;
         }
     }
     else
     {
-        time_t now = time(NULL);
-        struct tm localt;
-        localtime_r(&now, &localt);
-        char time_buf[64];
-        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] Device param error!");
+        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] Device param error!");
         return false;
     }
 }
@@ -113,6 +95,9 @@ void WSmsgs_Manager::NodeServiceClientInit()
     // 控制模式查询客户端
     CtrlModeQuery_client = this->create_client<robot_msgs::srv::CtrlModeQuery>("CtrlModeQuery_service");
 
+    // 机器人信息查询客户端
+    RobotInfoQuery_client = this->create_client<robot_msgs::srv::RobotInfoQuery>("RobotInfoQuery_client");
+
     // 设备时间校准客户端
     SystemTimeSyncCmd_client = this->create_client<robot_msgs::srv::SystemTimeSyncCmd>("SystemTimeSyncCmd_service");
 }
@@ -131,13 +116,7 @@ void WSmsgs_Manager::WSmsgsReceiveCallback(const std_msgs::msg::String::SharedPt
 {
     if (devel_mode == "debug")
     {
-        time_t now = time(NULL);
-        struct tm localt;
-        localtime_r(&now, &localt);
-        char time_buf[64];
-        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-        RCLCPP_INFO_STREAM(this->get_logger(), "[" << time_buf << "] " << msg->data);
+        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] " << msg->data);
     }
     WSreceiveJsonParse(msg);
 }
@@ -267,19 +246,14 @@ void WSmsgs_Manager::WSsendJsonBack(const cJSON* json_fun, const cJSON* rt_info,
 
     if (!temp_str)
     {
-        time_t now = time(NULL);
-        struct tm localt;
-        localtime_r(&now, &localt);
-        char time_buf[64];
-        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] WSsendJsonBack(): cJSON_Print() error!");
+        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] WSsendJsonBack(): cJSON_Print() error!");
     }
     else
     {
         WSjson_SendBack_str.data = temp_str;
         WSsend_msgs_pub->publish(WSjson_SendBack_str);
         free(temp_str);
+        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] WebSocket sent msgs: " << WSjson_SendBack_str.data);
     }
 
     cJSON_Delete(WSjson_SendBack);
@@ -297,22 +271,42 @@ void WSmsgs_Manager::WSsendJsonCmd(const cJSON* json_fun, const cJSON* cmd_data)
 
     if (!temp_str)
     {
-        time_t now = time(NULL);
-        struct tm localt;
-        localtime_r(&now, &localt);
-        char time_buf[64];
-        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] WSsendJsoncmd(): cJSON_Print() error!");
+        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] WSsendJsoncmd(): cJSON_Print() error!");
     }
     else
     {
         WSjson_Sendcmd_str.data = temp_str;
         WSsend_msgs_pub->publish(WSjson_Sendcmd_str);
         free(temp_str);
+        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] WebSocket sent msgs: " << WSjson_Sendcmd_str.data);
     }
 
     cJSON_Delete(WSjson_SendCmd);
+    return;
+}
+
+void WSmsgs_Manager::WSsendJsonUpload(const cJSON* json_fun, const cJSON* up_data)
+{
+    cJSON* WSjson_SendUpload = cJSON_CreateObject();
+    cJSON_AddItemReferenceToObject(WSjson_SendUpload, "json_fun", (cJSON*)json_fun);
+    cJSON_AddItemReferenceToObject(WSjson_SendUpload, "up_data", (cJSON*)up_data);
+
+    std_msgs::msg::String WSjson_SendUpload_str;
+    char* temp_str = cJSON_Print(WSjson_SendUpload);
+
+    if(!temp_str)
+    {
+        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] WSsendJsonUpload(): cJSON_Print() error!");
+    }
+    else
+    {
+        WSjson_SendUpload_str.data = temp_str;
+        WSsend_msgs_pub->publish(WSjson_SendUpload_str);
+        free(temp_str);
+        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] WebSocket sent msgs: " << WSjson_SendUpload_str.data);
+    }
+
+    cJSON_Delete(WSjson_SendUpload);
     return;
 }
 
@@ -327,19 +321,14 @@ void WSmsgs_Manager::WSsendJsonHeartbeatBag(const cJSON* json_fun, const cJSON* 
 
     if (!temp_str)
     {
-        time_t now = time(NULL);
-        struct tm localt;
-        localtime_r(&now, &localt);
-        char time_buf[64];
-        strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
-
-        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << time_buf << "] WSsendJsonHeartbeatBag(): cJSON_Print() error!");
+        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] WSsendJsonHeartbeatBag(): cJSON_Print() error!");
     }
     else
     {
         WSjson_HeartbeatBag_str.data = temp_str;
         WSsend_msgs_pub->publish(WSjson_HeartbeatBag_str);
         free(temp_str);
+        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] WebSocket sent msgs: " << WSjson_HeartbeatBag_str.data);
     }
 
     cJSON_Delete(WSjson_HeartbeatBag);
@@ -713,7 +702,7 @@ void WSmsgs_Manager::DeviceCtrlCmdJsonParse(const cJSON* json_fun, const char* s
     // 后台手动遥控
     else if(strcmp(sub_function, "control") == 0)
     {
-        auto request = std::make_shared<robot_msgs::srv::CtrlModeQuery::Request>();
+        robot_msgs::srv::CtrlModeQuery::Request::SharedPtr request;
         while (!CtrlModeQuery_client->wait_for_service(std::chrono::seconds(1)))
         {
             if (!rclcpp::ok()) {
@@ -794,7 +783,7 @@ void WSmsgs_Manager::ChangeCtrlModeCmdProcess(const cJSON* json_fun, const uint8
 {   
     if (target_ctrl_mode == 0 || target_ctrl_mode == 1)
     {
-        auto request = std::make_shared<robot_msgs::srv::ChangeCtrlModeCmd::Request>();
+        robot_msgs::srv::ChangeCtrlModeCmd::Request::SharedPtr request;
         request->ctrl_mode = target_ctrl_mode;
         while (!ChangeCtrlModeCmd_client->wait_for_service(std::chrono::seconds(1)))
         {
@@ -816,27 +805,19 @@ void WSmsgs_Manager::ChangeCtrlModeCmdProcess(const cJSON* json_fun, const uint8
 
         auto res_callback = [this, json_fun_copy, target_ctrl_mode, shared_future_ptr](rclcpp::Client<robot_msgs::srv::ChangeCtrlModeCmd>::SharedFuture future)
         {
-            *shared_future_ptr = future;
-            if(json_fun_copy != NULL)
-            {                    
-                auto response = future.get();
-                if (response->execute_success)
-                {
-                    ChangeCtrlModeCmdSendback(json_fun_copy, target_ctrl_mode);
-                    RCLCPP_INFO(this->get_logger(), "res->succuss is true");
-                    return;
-                }
-                else
-                {
-                    DeviceOperationFailedProcess(json_fun_copy);
-                    return;
-                }
+            *shared_future_ptr = future;                             
+            auto response = future.get();
+            if (response->execute_success)
+            {
+                ChangeCtrlModeCmdSendback(json_fun_copy, target_ctrl_mode);
+                RCLCPP_INFO(this->get_logger(), "res->succuss is true");
+                return;
             }
             else
             {
-                RCLCPP_ERROR(this->get_logger(), "json_fun is NULL");
+                DeviceOperationFailedProcess(json_fun_copy);
                 return;
-            }
+            }            
         };
 
         auto future = ChangeCtrlModeCmd_client->async_send_request(request, res_callback);
@@ -1028,6 +1009,128 @@ void WSmsgs_Manager::DeviceCtrlCmdSendback(const cJSON* json_fun, const char* ct
     cJSON_Delete(rt_data_SendBack);
     return;
 }
+
+/***********************************************机器人信息查询***********************************************/
+void WSmsgs_Manager::RobotInfoQueryProcess(const cJSON *json_fun)
+{
+    robot_msgs::srv::RobotInfoQuery::Request::SharedPtr request;
+    while (!RobotInfoQuery_client->wait_for_service(std::chrono::seconds(1)))
+    {
+        if (!rclcpp::ok()) {
+            RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service.");
+            return;
+        }
+        RCLCPP_INFO(this->get_logger(), "RobotInfoQuery Service not available, waiting again...");
+    }
+
+    cJSON* json_fun_copy = cJSON_Duplicate(json_fun, 1);
+    if(json_fun_copy == NULL)
+    {
+        RCLCPP_ERROR(this->get_logger(), "copy is null");
+        return;
+    }
+
+    auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::RobotInfoQuery>::SharedFuture>();
+
+    auto res_callback = [this, json_fun_copy, shared_future_ptr](rclcpp::Client<robot_msgs::srv::RobotInfoQuery>::SharedFuture future)
+    {
+        *shared_future_ptr = future;                             
+        auto response = future.get(); 
+        RobotInfoQuerySendback(json_fun_copy, response);
+        RCLCPP_INFO(this->get_logger(), "res->succuss is true");
+        return;       
+    };
+
+    auto future = RobotInfoQuery_client->async_send_request(request, res_callback);
+    *shared_future_ptr = future.future;
+    auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
+        [this, json_fun_copy, shared_future_ptr](){
+            if (shared_future_ptr->valid() && 
+                shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
+            {
+                DeviceInternalCommunicationErrorProcess(json_fun_copy);
+                return;
+            }
+        }); 
+}
+
+void WSmsgs_Manager::RobotInfoQuerySendback(const cJSON *json_fun, const robot_msgs::srv::RobotInfoQuery::Response::SharedPtr response)
+{
+    if(json_fun == NULL)
+    {
+        RCLCPP_ERROR(this->get_logger(), "json_fun is NULL in [%s]. Cannot duplicate.", __FUNCTION__);
+        return;
+    }
+    
+    cJSON* json_fun_SendBack = cJSON_Duplicate(json_fun, 1);
+    if(json_fun_SendBack == NULL)
+    {
+        RCLCPP_ERROR(this->get_logger(), "cJSON_Duplicate failed in [%s].", __FUNCTION__);
+        return;
+    }
+
+    cJSON_ReplaceItemInObject(json_fun_SendBack, "type", cJSON_CreateString("client_rt"));
+
+    cJSON* rt_info_SendBack = cJSON_CreateObject();
+    cJSON_AddNumberToObject(rt_info_SendBack, "code", 1000);
+    cJSON_AddStringToObject(rt_info_SendBack, "msg", "ok");
+
+    cJSON* rt_data_SendBack = cJSON_CreateObject();
+    cJSON_AddStringToObject(rt_data_SendBack, "id_device", id_device.c_str());
+    cJSON_AddStringToObject(rt_data_SendBack, "e_device_type", "e_robot_track");
+    
+    cJSON_AddNumberToObject(rt_data_SendBack, "e_runtime_speed", response->runtime_speed);
+    cJSON_AddNumberToObject(rt_data_SendBack, "e_runtime_runtime", response->runtime_runtime);
+    cJSON_AddNumberToObject(rt_data_SendBack, "e_runtime_mileage", response->runtime_mileage);
+    
+    if (device_type == "e_robot_track") {
+        cJSON_AddStringToObject(rt_data_SendBack, "e_runtime_rfid", response->runtime_rfid.c_str());
+    }
+    
+    cJSON_AddNumberToObject(rt_data_SendBack, "e_battery_percent", response->runtime_battery_percent);
+    
+    cJSON* runtime_position = cJSON_CreateObject();
+    cJSON_AddStringToObject(runtime_position, "id_track", response->runtime_track_id.c_str());
+    cJSON_AddNumberToObject(runtime_position, "track_pos", response->runtime_track_pos);
+    cJSON_AddItemReferenceToObject(rt_data_SendBack, "e_runtime_position", runtime_position);
+    
+    cJSON* arm_end_pos = cJSON_CreateObject();
+    cJSON_AddNumberToObject(arm_end_pos, "e_arm_end_pos_x", response->runtime_arm_end_pos_x);
+    cJSON_AddNumberToObject(arm_end_pos, "e_arm_end_pos_y", response->runtime_arm_end_pos_y);
+    cJSON_AddNumberToObject(arm_end_pos, "e_arm_end_pos_z", response->runtime_arm_end_pos_z);
+    cJSON_AddNumberToObject(arm_end_pos, "e_arm_end_pos_rx", response->runtime_arm_end_pos_rx);
+    cJSON_AddNumberToObject(arm_end_pos, "e_arm_end_pos_ry", response->runtime_arm_end_pos_ry);
+    cJSON_AddNumberToObject(arm_end_pos, "e_arm_end_pos_rz", response->runtime_arm_end_pos_rz);
+    cJSON_AddItemReferenceToObject(rt_data_SendBack, "e_arm_end_pos", arm_end_pos);
+    
+    cJSON* arm_joint_pos = cJSON_CreateObject();
+    cJSON_AddNumberToObject(arm_joint_pos, "e_arm_joint_j1_pos", response->runtime_arm_joint_j1_pos);
+    cJSON_AddNumberToObject(arm_joint_pos, "e_arm_joint_j2_pos", response->runtime_arm_joint_j2_pos);
+    cJSON_AddNumberToObject(arm_joint_pos, "e_arm_joint_j3_pos", response->runtime_arm_joint_j3_pos);
+    cJSON_AddNumberToObject(arm_joint_pos, "e_arm_joint_j4_pos", response->runtime_arm_joint_j4_pos);
+    
+    if (device_type == "e_robot_crawler") {
+        cJSON_AddNumberToObject(arm_joint_pos, "e_arm_joint_j5_pos", response->runtime_arm_joint_j5_pos);
+        cJSON_AddNumberToObject(arm_joint_pos, "e_arm_joint_j6_pos", response->runtime_arm_joint_j6_pos);
+    }
+    cJSON_AddItemReferenceToObject(rt_data_SendBack, "e_arm_joint_pos", arm_joint_pos);
+    
+    if (device_type == "e_robot_crawler") {
+        cJSON_AddNumberToObject(rt_data_SendBack, "e_lift_pos", response->runtime_lift_pos);
+    }
+
+    WSsendJsonBack(json_fun_SendBack, rt_info_SendBack, rt_data_SendBack);
+
+    // 清理JSON对象
+    cJSON_Delete(json_fun_SendBack);
+    cJSON_Delete(rt_info_SendBack);
+    cJSON_Delete(rt_data_SendBack);
+    cJSON_Delete(runtime_position);
+    cJSON_Delete(arm_end_pos);
+    cJSON_Delete(arm_joint_pos);
+
+}
+
 
 /***********************************************机器人心跳包***********************************************/
 void WSmsgs_Manager::HeartbeatBagCallback(const robot_msgs::msg::HeartbeatBag::SharedPtr msg)

@@ -9,7 +9,9 @@
                 "/home/creepert/unitree_ros2/cyclonedds_ws/install/unitree_api/include/**",
                 "/usr/local/include/**",
                 "/home/creepert/ws_ctrl_ws/src/web_socket/include/web_socket",
-                "/home/creepert/ws_ctrl_ws/src/ctrl_manager/include/ctrl_manager"
+                "/home/creepert/ws_ctrl_ws/src/ctrl_manager/include/ctrl_manager",
+                "${workspaceFolder}/install/robot_msgs/include/robot_msgs",
+                "${workspaceFolder}/src/info_manager/include/info_manager"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
