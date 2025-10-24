@@ -1,0 +1,8 @@
+{
+	"monitor_point": "SDT_Z2_001m_p01",
+	"monitor_point_pos": "SDT_Z2_001m",
+	"track_id": "TestX",
+	"track_pos": 1000,
+	"arm_pos": "pos1",
+	"zone": "zone3"
+}

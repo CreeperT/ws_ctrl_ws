@@ -1,0 +1,8 @@
+{
+	"monitor_point": "470_track_01_010m_p12",
+	"monitor_point_pos": "470_track_01_010m",
+	"track_id": "470_track_01",
+	"track_pos": 10000,
+	"lift_pos": 300,
+	"arm_pos": "pos12" 
+}

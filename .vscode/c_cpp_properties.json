@@ -11,7 +11,8 @@
                 "/home/creepert/ws_ctrl_ws/src/web_socket/include/web_socket",
                 "/home/creepert/ws_ctrl_ws/src/ctrl_manager/include/ctrl_manager",
                 "${workspaceFolder}/install/robot_msgs/include/robot_msgs",
-                "${workspaceFolder}/src/info_manager/include/info_manager"
+                "${workspaceFolder}/src/info_manager/include/info_manager",
+                "${workspaceFolder}/src/task_manager/include/task_manager"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

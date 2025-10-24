@@ -1,0 +1,7 @@
+{
+	"id_task_info":	"E8E718DE-1A33-6D17-A79C-36602B870BC2",
+	"task_name":	"aaaaaccs",
+	"task_type":	"e_inspect_all",
+	"monitor_points":	["SDT-H1-003m-p04", "SDT-H3-003m-p02", "SDT-P1-047m-p11", "SDT-P2-003m-p05", "SDT-Z1-001m-p01", "SDT-Z2-002m-p04"],
+	"create_time":	"2024-06-16 17:26:05"
+}

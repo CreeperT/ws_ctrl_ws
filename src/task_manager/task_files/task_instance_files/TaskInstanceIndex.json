@@ -1,0 +1,86 @@
+{
+	"TaskInstanceIndex":	[{
+			"id_task_info":	"AEB4C707-294A-8233-6351-4B92CCF3A8E1",
+			"task_name":	"testtesttest",
+			"task_type":	"e_inspect_all",
+			"task_ticket":	"5430B1ED-5FA0-D509-26B1-811BC208CABE",
+			"task_execute_type":	"plan_task",
+			"id_task_plan":	"8F6E7144-62A8-BA57-0099-898F5709A8E9",
+			"status":	"e_finished",
+			"start_time":	"2025-07-02 20:43:00",
+			"end_time":	"2025-07-02 20:46:02",
+			"execute_time":	182,
+			"point_count":	12
+		}, {
+			"id_task_info":	"AEB4C707-294A-8233-6351-4B92CCF3A8E1",
+			"task_name":	"testtesttest",
+			"task_type":	"e_inspect_all",
+			"task_ticket":	"44742950-2049-8C3D-FF6E-9F1E878C5D45",
+			"task_execute_type":	"plan_task",
+			"id_task_plan":	"8F6E7144-62A8-BA57-0099-898F5709A8E9",
+			"status":	"e_finished",
+			"start_time":	"2025-07-03 09:55:00",
+			"end_time":	"2025-07-03 09:58:02",
+			"execute_time":	182,
+			"point_count":	12
+		}, {
+			"id_task_info":	"AEB4C707-294A-8233-6351-4B92CCF3A8E1",
+			"task_name":	"testtesttest",
+			"task_type":	"e_inspect_all",
+			"task_ticket":	"5DF97A95-7E86-91C4-07FC-12F73AE46042",
+			"task_execute_type":	"plan_task",
+			"id_task_plan":	"8F6E7144-62A8-BA57-0099-898F5709A8E9",
+			"status":	"e_finished",
+			"start_time":	"2025-09-25 16:02:00",
+			"end_time":	"2025-09-25 16:18:22",
+			"execute_time":	982,
+			"point_count":	12
+		}, {
+			"id_task_info":	"AEB4C707-294A-8233-6351-4B92CCF3A8E1",
+			"task_name":	"testtesttest",
+			"task_type":	"e_inspect_all",
+			"task_ticket":	"22198BF0-AB1A-3C04-7152-91643F45F75A",
+			"task_execute_type":	"plan_task",
+			"id_task_plan":	"8F6E7144-62A8-BA57-0099-898F5709A8E9",
+			"status":	"e_finished",
+			"start_time":	"2025-09-25 16:32:00",
+			"end_time":	"2025-09-25 16:35:41",
+			"execute_time":	221,
+			"point_count":	12
+		}, {
+			"id_task_info":	"AEB4C707-294A-8233-6351-4B92CCF3A8E1",
+			"task_name":	"testtesttest",
+			"task_type":	"e_inspect_all",
+			"task_ticket":	"3D824274-EC02-4C91-FBE0-C8101713615D",
+			"task_execute_type":	"plan_task",
+			"id_task_plan":	"8F6E7144-62A8-BA57-0099-898F5709A8E9",
+			"status":	"e_finished",
+			"start_time":	"2025-09-25 16:40:00",
+			"end_time":	"2025-09-25 16:43:41",
+			"execute_time":	221,
+			"point_count":	12
+		}, {
+			"id_task_info":	"E0894256-C9FB-79CD-B246-5D8E3836F51C",
+			"task_name":	"DAM-563-1-inspect-all",
+			"task_type":	"e_inspect_all",
+			"task_ticket":	"8C0BD9A4-B4A8-15FA-7193-919D5649B498",
+			"task_execute_type":	"plan_task",
+			"id_task_plan":	"D5F45263-811A-C625-B2EB-1815CADD14BE",
+			"status":	"e_finished",
+			"start_time":	"2025-09-27 10:00:00",
+			"end_time":	"2025-09-28 07:16:58",
+			"execute_time":	76618,
+			"point_count":	0
+		}, {
+			"id_task_info":	"E8D13C48-4EA1-9FA8-9317-6FC36B7E82CE",
+			"task_name":	"DAM-563-inspect-all",
+			"task_type":	"e_inspect_all",
+			"task_ticket":	"A5B07F7C-498A-5067-3BD3-7F615C350019",
+			"task_execute_type":	"manual_task",
+			"status":	"e_finished",
+			"start_time":	"2025-09-28 11:42:23",
+			"end_time":	"2025-09-28 13:07:21",
+			"execute_time":	5098,
+			"point_count":	588
+		}]
+}

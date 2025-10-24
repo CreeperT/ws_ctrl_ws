@@ -1,0 +1,7 @@
+{
+	"id_task_info":	"E0894256-C9FB-79CD-B246-5D8E3836F51C",
+	"id_task_plan":	"D5F45263-811A-C625-B2EB-1815CADD14BE",
+	"plan_type":	"e_plan_fixed",
+	"express":	["0 0 10 ? * 6"],
+	"create_time":	"2025-06-20 11:15:30"
+}

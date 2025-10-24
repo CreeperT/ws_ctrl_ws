@@ -1,0 +1,7 @@
+{
+	"id_task_info":	"AEB4C707-294A-8233-6351-4B92CCF3A8E1",
+	"task_name":	"testtesttest",
+	"task_type":	"e_inspect_all",
+	"monitor_points":	["DAM-563-687m-p01", "DAM-563-687m-p02", "DAM-563-687m-p03", "DAM-563-687m-p04", "DAM-563-687m-p05", "DAM-563-687m-p06", "DAM-563-687m-p07", "DAM-563-687m-p08", "DAM-563-687m-p09", "DAM-563-687m-p10", "DAM-563-687m-p11", "DAM-563-687m-p12"],
+	"create_time":	"2024-06-16 17:26:05"
+}

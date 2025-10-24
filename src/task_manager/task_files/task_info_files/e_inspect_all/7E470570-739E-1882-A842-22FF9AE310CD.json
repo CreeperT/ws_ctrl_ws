@@ -1,0 +1,7 @@
+{
+	"id_task_info":	"7E470570-739E-1882-A842-22FF9AE310CD",
+	"task_name":	"470_track_01_inspect_all",
+	"task_type":	"e_inspect_all",
+	"monitor_points":	["470_track_01_001m_p01", "470_track_01_001m_p02", "470_track_01_001m_p03", "470_track_01_001m_p04", "470_track_01_001m_p05", "470_track_01_001m_p06", "470_track_01_001m_p07", "470_track_01_001m_p08", "470_track_01_001m_p09", "470_track_01_001m_p10", "470_track_01_001m_p11", "470_track_01_001m_p12", "470_track_01_002m_p01", "470_track_01_002m_p02", "470_track_01_002m_p03", "470_track_01_002m_p04", "470_track_01_002m_p05", "470_track_01_002m_p06", "470_track_01_002m_p07", "470_track_01_002m_p08", "470_track_01_002m_p09", "470_track_01_002m_p10", "470_track_01_002m_p11", "470_track_01_002m_p12"],
+	"create_time":	"2024-06-16 17:26:05"
+}
