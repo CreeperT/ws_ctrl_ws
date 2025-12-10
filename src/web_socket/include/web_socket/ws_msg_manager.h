@@ -175,8 +175,9 @@ private:
     // 设备时间校准
     rclcpp::Client<robot_msgs::srv::SystemTimeSyncCmd>::SharedPtr SystemTimeSyncCmd_client;
 
+    // 回调组
+
     // Spin逻辑
-    rclcpp::executors::MultiThreadedExecutor executor_;
     std::thread spinner_thread_;
 
     // 机器人设备相关信息

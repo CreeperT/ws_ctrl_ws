@@ -37,6 +37,8 @@ public:
     // 初始化
     void getTaskFilesDir();
 
+    void NodeSpinnerStartup();
+
     std::string generateRandomUUID();
 
     // 任务信息
@@ -64,10 +66,17 @@ public:
         return time_buf;
     }
 
+    void joinSpinnerThread()
+    {
+        if (spinner_thread_.joinable())
+            spinner_thread_.join();
+    }
+
 public:
     std::string TaskFilesDir;
     std::string id_device;
     std::string devel_mode;
+    std::thread spinner_thread_;
 };
 
 #endif

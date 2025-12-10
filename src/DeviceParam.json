@@ -1,5 +1,5 @@
 {
-    "WebSocket_Server_host": "172.16.20.206",
+    "WebSocket_Server_host": "172.16.20.118",
     "WebSocket_Server_port": "8081",
     "WebSocket_Server_param": "/robot_quadrupedal-0001",
     "QKM_Server_host": "192.168.0.200",
@@ -33,6 +33,7 @@
     "FtpUploadRetryMax": 50,
     "ImgDataSaveMaxTimeHour": 1,
     "TaskStartOrFinishResponseDuration": 1,
+    "WiperWorkDurationSeconds": 10,
     "Devel_Mode": "debug",
     "TrackArmMode": "debug"
 }

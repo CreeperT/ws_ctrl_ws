@@ -97,6 +97,8 @@ public:
     void NodeServiceClientInit();
     void NodeServiceServerInit();
 
+    void NodeSpinnerStartup();
+
     std::string generateRandomUUID();
 
     // 任务控制
@@ -152,6 +154,12 @@ public:
         return time_buf;
     }
 
+    void joinSpinnerThread()
+    {
+        if (spinner_thread_.joinable())
+            spinner_thread_.join();
+    }
+
 public:
     // 客户端
     rclcpp::Client<robot_msgs::srv::MotorCtrltoPosSrv>::SharedPtr MotorCtrltoPosSrv_client;
@@ -183,6 +191,11 @@ public:
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr MotorStopCtrl_pub;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr ArmCtrlStopCmd_pub;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr LiftCtrlStopCmd_pub;
+
+    //回调组
+    rclcpp::CallbackGroup::SharedPtr server_callback_group_;
+
+    std::thread spinner_thread_;
 
     // 参数
     std::vector<task_execute_info> task_execute_infos;

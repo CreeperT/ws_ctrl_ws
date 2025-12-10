@@ -140,11 +140,10 @@ void WSmsgs_Manager::NodeServiceClientInit()
 
 void WSmsgs_Manager::NodeSpinnerStartup()
 {
-    executor_.add_node(shared_from_this());
-    spinner_thread_ = std::thread([this]()
-                                  { executor_.spin(); });
-    spinner_thread_.join();
     // spinner_thread_ = std::thread([this]() { rclcpp::spin(this->get_node_base_interface()); });
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(this->get_node_base_interface());
+    executor.spin();
 }
 
 /***********************************************WS通信相关***********************************************/
@@ -828,7 +827,7 @@ void WSmsgs_Manager::DeviceCtrlCmdJsonParse(const cJSON *json_fun, const char *s
     // 后台手动遥控
     else if (strcmp(sub_function, "control") == 0)
     {
-        robot_msgs::srv::CtrlModeQuery::Request::SharedPtr request;
+        auto request = std::make_shared<robot_msgs::srv::CtrlModeQuery::Request>();
         while (!CtrlModeQuery_client->wait_for_service(std::chrono::seconds(1)))
         {
             if (!rclcpp::ok())
@@ -912,7 +911,7 @@ void WSmsgs_Manager::ChangeCtrlModeCmdProcess(const cJSON *json_fun, const uint8
 {
     if (target_ctrl_mode == 0 || target_ctrl_mode == 1)
     {
-        robot_msgs::srv::ChangeCtrlModeCmd::Request::SharedPtr request;
+        auto request = std::make_shared<robot_msgs::srv::ChangeCtrlModeCmd::Request>();
         request->ctrl_mode = target_ctrl_mode;
         while (!ChangeCtrlModeCmd_client->wait_for_service(std::chrono::seconds(1)))
         {
@@ -952,11 +951,11 @@ void WSmsgs_Manager::ChangeCtrlModeCmdProcess(const cJSON *json_fun, const uint8
 
         auto future = ChangeCtrlModeCmd_client->async_send_request(request, res_callback);
         *shared_future_ptr = future.future;
-        auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
+        auto timer = this->create_wall_timer(std::chrono::seconds(5),
                                              [this, json_fun_copy, shared_future_ptr]()
                                              {
                                                  if (shared_future_ptr->valid() &&
-                                                     shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
+                                                     (shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout))
                                                  {
                                                      DeviceInternalCommunicationErrorProcess(json_fun_copy);
                                                      return;

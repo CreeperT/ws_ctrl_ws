@@ -79,6 +79,13 @@ std::string Task_File_Manager::generateRandomUUID()
     return uuid.str();
 }
 
+void Task_File_Manager::NodeSpinnerStartup()
+{
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(this->get_node_base_interface());
+    executor.spin();
+}
+
 /********************************************************任务信息*************************************************************/
 bool Task_File_Manager::TaskInfoListQuery(const robot_msgs::srv::InspectTaskInfoListQuery::Request::SharedPtr req, robot_msgs::srv::InspectTaskInfoListQuery::Response::SharedPtr res)
 {

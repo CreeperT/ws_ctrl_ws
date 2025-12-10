@@ -5,8 +5,13 @@ using std::placeholders::_2;
 using std::placeholders::_3;
 using std::placeholders::_4;
 
-Task_Execute::Task_Execute(const std::string id_device_, const std::string device_type_, const std::string devel_mode_, const std::string TrackArmMode_,
-                           const uint16_t ImgDataCollectWaitTime_, const uint16_t TaskStartOrFinishResponseDuration_, const uint16_t WiperWorkDuration_) : Node("task_execute")
+Task_Execute::Task_Execute(const std::string id_device_, 
+                           const std::string device_type_, 
+                           const std::string devel_mode_, 
+                           const std::string TrackArmMode_,
+                           const uint16_t ImgDataCollectWaitTime_, 
+                           const uint16_t TaskStartOrFinishResponseDuration_, 
+                           const uint16_t WiperWorkDuration_) : Node("task_execute")
 {
     id_device = id_device_;
     device_type = device_type_;
@@ -31,6 +36,8 @@ Task_Execute::Task_Execute(const std::string id_device_, const std::string devic
 
     std::thread TaskStartOrFinishResponseCheckThread(&Task_Execute::TaskStartOrFinishResponseCheck, this);
     TaskStartOrFinishResponseCheckThread.detach();
+
+
 }
 
 /********************************************************初始化*************************************************************/
@@ -39,7 +46,8 @@ void Task_Execute::getTaskFilesDir()
 {
     const char *homeDir = getenv("HOME");
     TaskFilesDir = homeDir;
-    TaskFilesDir = TaskFilesDir + "ws_ctrl_ws/src/task_manager/task_files/";
+    TaskFilesDir = TaskFilesDir + "/ws_ctrl_ws/src/task_manager/task_files/";
+    RCLCPP_INFO(this->get_logger(), "TaskFilesDir: %s", TaskFilesDir.c_str());
 }
 
 void Task_Execute::NodePublisherInit()
@@ -80,78 +88,80 @@ void Task_Execute::NodeServiceClientInit()
     MotorCtrltoPosSrv_client = this->create_client<robot_msgs::srv::MotorCtrltoPosSrv>("MotorCtrltoPosSrv_service");
     
     // 等待服务可用
-    while (!MotorCtrltoPosSrv_client->wait_for_service(std::chrono::seconds(1))) {
-        if (!rclcpp::ok()) {
-            RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for MotorCtrltoPosSrv_service.");
-            return;
-        }
-        RCLCPP_INFO(this->get_logger(), "Waiting for MotorCtrltoPosSrv_service...");
-    }
+    // while (!MotorCtrltoPosSrv_client->wait_for_service(std::chrono::seconds(1))) {
+    //     if (!rclcpp::ok()) {
+    //         RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for MotorCtrltoPosSrv_service.");
+    //         return;
+    //     }
+    //     RCLCPP_INFO(this->get_logger(), "Waiting for MotorCtrltoPosSrv_service...");
+    // }
 
     if (device_type == "e_robot_crawler" || device_type == "e_robot_track" || device_type == "e_robot_quadrupedal")
     {
         ArmCtrlSrv_client = this->create_client<robot_msgs::srv::ArmCtrlSrv>("ArmCtrlSrv_service");
         
-        while (!ArmCtrlSrv_client->wait_for_service(std::chrono::seconds(1))) {
-            if (!rclcpp::ok()) {
-                RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for ArmCtrlSrv_service.");
-                return;
-            }
-            RCLCPP_INFO(this->get_logger(), "Waiting for ArmCtrlSrv_service...");
-        }
+        // while (!ArmCtrlSrv_client->wait_for_service(std::chrono::seconds(1))) {
+        //     if (!rclcpp::ok()) {
+        //         RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for ArmCtrlSrv_service.");
+        //         return;
+        //     }
+        //     RCLCPP_INFO(this->get_logger(), "Waiting for ArmCtrlSrv_service...");
+        // }
     }
 
     if (device_type == "e_robot_crawler")
     {
         LiftCtrlSrv_client = this->create_client<robot_msgs::srv::LiftCtrlSrv>("LiftCtrlSrv_service");
         
-        while (!LiftCtrlSrv_client->wait_for_service(std::chrono::seconds(1))) {
-            if (!rclcpp::ok()) {
-                RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for LiftCtrlSrv_service.");
-                return;
-            }
-            RCLCPP_INFO(this->get_logger(), "Waiting for LiftCtrlSrv_service...");
-        }
+        // while (!LiftCtrlSrv_client->wait_for_service(std::chrono::seconds(1))) {
+        //     if (!rclcpp::ok()) {
+        //         RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for LiftCtrlSrv_service.");
+        //         return;
+        //     }
+        //     RCLCPP_INFO(this->get_logger(), "Waiting for LiftCtrlSrv_service...");
+        // }
     }
 
     // 扩展设备控制服务
     ExtendDevCtrlSrv_client = this->create_client<robot_msgs::srv::ExtendDevCtrlSrv>("ExtendDevCtrlSrv_service");
     
-    while (!ExtendDevCtrlSrv_client->wait_for_service(std::chrono::seconds(1))) {
-        if (!rclcpp::ok()) {
-            RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for ExtendDevCtrlSrv_service.");
-            return;
-        }
-        RCLCPP_INFO(this->get_logger(), "Waiting for ExtendDevCtrlSrv_service...");
-    }
+    // while (!ExtendDevCtrlSrv_client->wait_for_service(std::chrono::seconds(1))) {
+    //     if (!rclcpp::ok()) {
+    //         RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for ExtendDevCtrlSrv_service.");
+    //         return;
+    //     }
+    //     RCLCPP_INFO(this->get_logger(), "Waiting for ExtendDevCtrlSrv_service...");
+    // }
 
     // 任务数据收集服务
     TaskDataCollectSrv_client = this->create_client<robot_msgs::srv::TaskDataCollectSrv>("TaskDataCollectSrv_service");
     
-    while (!TaskDataCollectSrv_client->wait_for_service(std::chrono::seconds(1))) {
-        if (!rclcpp::ok()) {
-            RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for TaskDataCollectSrv_service.");
-            return;
-        }
-        RCLCPP_INFO(this->get_logger(), "Waiting for TaskDataCollectSrv_service...");
-    }
+    // while (!TaskDataCollectSrv_client->wait_for_service(std::chrono::seconds(1))) {
+    //     if (!rclcpp::ok()) {
+    //         RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for TaskDataCollectSrv_service.");
+    //         return;
+    //     }
+    //     RCLCPP_INFO(this->get_logger(), "Waiting for TaskDataCollectSrv_service...");
+    // }
 
     // 控制模式查询服务
     CtrlModeQuery_client = this->create_client<robot_msgs::srv::CtrlModeQuery>("CtrlModeQuery_service");
     
-    while (!CtrlModeQuery_client->wait_for_service(std::chrono::seconds(1))) {
-        if (!rclcpp::ok()) {
-            RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for CtrlModeQuery_service.");
-            return;
-        }
-        RCLCPP_INFO(this->get_logger(), "Waiting for CtrlModeQuery_service...");
-    }
+    // while (!CtrlModeQuery_client->wait_for_service(std::chrono::seconds(1))) {
+    //     if (!rclcpp::ok()) {
+    //         RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for CtrlModeQuery_service.");
+    //         return;
+    //     }
+    //     RCLCPP_INFO(this->get_logger(), "Waiting for CtrlModeQuery_service...");
+    // }
 
     RCLCPP_INFO(this->get_logger(), "All services clients initialized successfully!");
 }
 
 void Task_Execute::NodeServiceServerInit()
 {
+    server_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);   
+    
     // 创建服务服务器
     TaskStartOrFinishResponse_server = this->create_service<robot_msgs::srv::TaskStartOrFinishResponse>(
         "TaskStartOrFinishResponse_service",
@@ -175,7 +185,8 @@ void Task_Execute::NodeServiceServerInit()
 
     ModeChangeStartTask_server = this->create_service<robot_msgs::srv::ModeChangeStartTask>(
         "ModeChangeStartTask_service",
-        std::bind(&Task_Execute::ModeChangeStartTaskHandle, this, _1, _2));
+        std::bind(&Task_Execute::ModeChangeStartTaskHandle, this, _1, _2),
+        rmw_qos_profile_services_default, server_callback_group_);
 
     if (device_type == "e_robot_track" || device_type == "e_robot_crawler")
     {
@@ -213,6 +224,13 @@ std::string Task_Execute::generateRandomUUID()
     }
 
     return uuid.str();
+}
+
+void Task_Execute::NodeSpinnerStartup()
+{
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(this->get_node_base_interface());
+    executor.spin();
 }
 
 /********************************************************任务控制*************************************************************/
@@ -4834,32 +4852,35 @@ bool Task_Execute::ModeChangePauseTaskHandle(robot_msgs::srv::ModeChangePauseTas
 bool Task_Execute::ModeChangeStartTaskHandle(robot_msgs::srv::ModeChangeStartTask::Request::SharedPtr req, robot_msgs::srv::ModeChangeStartTask::Response::SharedPtr res)
 {
     (void) req;
-    if (!task_ticket_pause_by_mode_change.empty())
-    {
-        for (size_t i = 0; i < task_execute_infos.size(); i++)
-        {
-            if (task_execute_infos[i].task_ticket == task_ticket_pause_by_mode_change)
-            {
-                task_execute_infos[i].task_execute_flag = "execute";
-                task_execute_infos[i].execute_stop_flag = false;
-            }
+    RCLCPP_INFO(this->get_logger(), "Service ModeChangeStartTask received a request.");
 
-        }
+    res->execute_success = true;
+    // if (!task_ticket_pause_by_mode_change.empty())
+    // {
+    //     for (size_t i = 0; i < task_execute_infos.size(); i++)
+    //     {
+    //         if (task_execute_infos[i].task_ticket == task_ticket_pause_by_mode_change)
+    //         {
+    //             task_execute_infos[i].task_execute_flag = "execute";
+    //             task_execute_infos[i].execute_stop_flag = false;
+    //         }
 
-        if (TaskStartAuto(task_ticket_pause_by_mode_change))
-        {
-            res->execute_success = true;
-            task_ticket_pause_by_mode_change = "";
-        }
-        else
-        {
-            res->execute_success = false;
-        }
-    }
-    else
-    {
-        res->execute_success = true;
-    }
+    //     }
+
+    //     if (TaskStartAuto(task_ticket_pause_by_mode_change))
+    //     {
+    //         res->execute_success = true;
+    //         task_ticket_pause_by_mode_change = "";
+    //     }
+    //     else
+    //     {
+    //         res->execute_success = false;
+    //     }
+    // }
+    // else
+    // {
+    //     res->execute_success = true;
+    // }
 
     return true;
 }
