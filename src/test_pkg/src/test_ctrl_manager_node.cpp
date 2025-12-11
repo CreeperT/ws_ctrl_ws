@@ -7,9 +7,9 @@ int main(int argc, char** argv)
     setlocale(LC_CTYPE, "zh_CN.utf8");
 
     auto test_ctrl_manager = std::make_shared<Ctrl_Manager>("test_ctrl_manager_node");
-    test_ctrl_manager->NodeSpinnerStartup();
-
-    test_ctrl_manager->joinSpinnerThread();
+    rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 5);
+    executor.add_node(test_ctrl_manager);
+    executor.spin();
     rclcpp::shutdown();
 
     return EXIT_SUCCESS;

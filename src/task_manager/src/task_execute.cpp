@@ -4,14 +4,17 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
 using std::placeholders::_4;
+using std::chrono::seconds;
+using std::chrono::milliseconds;
 
-Task_Execute::Task_Execute(const std::string id_device_, 
+Task_Execute::Task_Execute(const char* node_name,
+                           const std::string id_device_, 
                            const std::string device_type_, 
                            const std::string devel_mode_, 
                            const std::string TrackArmMode_,
                            const uint16_t ImgDataCollectWaitTime_, 
                            const uint16_t TaskStartOrFinishResponseDuration_, 
-                           const uint16_t WiperWorkDuration_) : Node("task_execute")
+                           const uint16_t WiperWorkDuration_) : Node(node_name)
 {
     id_device = id_device_;
     device_type = device_type_;
@@ -84,8 +87,10 @@ void Task_Execute::NodePublisherInit()
 
 void Task_Execute::NodeServiceClientInit()
 {
+    client_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+
     // 创建服务客户端
-    MotorCtrltoPosSrv_client = this->create_client<robot_msgs::srv::MotorCtrltoPosSrv>("MotorCtrltoPosSrv_service");
+    MotorCtrltoPosSrv_client = this->create_client<robot_msgs::srv::MotorCtrltoPosSrv>("MotorCtrltoPosSrv_service", rmw_qos_profile_services_default, client_callback_group_);
     
     // 等待服务可用
     // while (!MotorCtrltoPosSrv_client->wait_for_service(std::chrono::seconds(1))) {
@@ -98,7 +103,7 @@ void Task_Execute::NodeServiceClientInit()
 
     if (device_type == "e_robot_crawler" || device_type == "e_robot_track" || device_type == "e_robot_quadrupedal")
     {
-        ArmCtrlSrv_client = this->create_client<robot_msgs::srv::ArmCtrlSrv>("ArmCtrlSrv_service");
+        ArmCtrlSrv_client = this->create_client<robot_msgs::srv::ArmCtrlSrv>("ArmCtrlSrv_service", rmw_qos_profile_services_default, client_callback_group_);
         
         // while (!ArmCtrlSrv_client->wait_for_service(std::chrono::seconds(1))) {
         //     if (!rclcpp::ok()) {
@@ -111,7 +116,7 @@ void Task_Execute::NodeServiceClientInit()
 
     if (device_type == "e_robot_crawler")
     {
-        LiftCtrlSrv_client = this->create_client<robot_msgs::srv::LiftCtrlSrv>("LiftCtrlSrv_service");
+        LiftCtrlSrv_client = this->create_client<robot_msgs::srv::LiftCtrlSrv>("LiftCtrlSrv_service", rmw_qos_profile_services_default, client_callback_group_);
         
         // while (!LiftCtrlSrv_client->wait_for_service(std::chrono::seconds(1))) {
         //     if (!rclcpp::ok()) {
@@ -123,7 +128,7 @@ void Task_Execute::NodeServiceClientInit()
     }
 
     // 扩展设备控制服务
-    ExtendDevCtrlSrv_client = this->create_client<robot_msgs::srv::ExtendDevCtrlSrv>("ExtendDevCtrlSrv_service");
+    ExtendDevCtrlSrv_client = this->create_client<robot_msgs::srv::ExtendDevCtrlSrv>("ExtendDevCtrlSrv_service", rmw_qos_profile_services_default, client_callback_group_);
     
     // while (!ExtendDevCtrlSrv_client->wait_for_service(std::chrono::seconds(1))) {
     //     if (!rclcpp::ok()) {
@@ -134,7 +139,7 @@ void Task_Execute::NodeServiceClientInit()
     // }
 
     // 任务数据收集服务
-    TaskDataCollectSrv_client = this->create_client<robot_msgs::srv::TaskDataCollectSrv>("TaskDataCollectSrv_service");
+    TaskDataCollectSrv_client = this->create_client<robot_msgs::srv::TaskDataCollectSrv>("TaskDataCollectSrv_service", rmw_qos_profile_services_default, client_callback_group_);
     
     // while (!TaskDataCollectSrv_client->wait_for_service(std::chrono::seconds(1))) {
     //     if (!rclcpp::ok()) {
@@ -145,7 +150,7 @@ void Task_Execute::NodeServiceClientInit()
     // }
 
     // 控制模式查询服务
-    CtrlModeQuery_client = this->create_client<robot_msgs::srv::CtrlModeQuery>("CtrlModeQuery_service");
+    CtrlModeQuery_client = this->create_client<robot_msgs::srv::CtrlModeQuery>("CtrlModeQuery_service", rmw_qos_profile_services_default, client_callback_group_);
     
     // while (!CtrlModeQuery_client->wait_for_service(std::chrono::seconds(1))) {
     //     if (!rclcpp::ok()) {
@@ -165,23 +170,33 @@ void Task_Execute::NodeServiceServerInit()
     // 创建服务服务器
     TaskStartOrFinishResponse_server = this->create_service<robot_msgs::srv::TaskStartOrFinishResponse>(
         "TaskStartOrFinishResponse_service",
-        std::bind(&Task_Execute::TaskStartOrFinishResponseHandle, this, _1, _2));
+        std::bind(&Task_Execute::TaskStartOrFinishResponseHandle, this, _1, _2),
+        rmw_qos_profile_services_default, server_callback_group_
+    );
 
     TaskExecuteStatusQuery_server = this->create_service<robot_msgs::srv::TaskExecuteStatusQuery>(
         "TaskExecuteStatusQuery_service", 
-        std::bind(&Task_Execute::TaskExecuteStatusQueryHandle, this, _1, _2));
+        std::bind(&Task_Execute::TaskExecuteStatusQueryHandle, this, _1, _2),
+        rmw_qos_profile_services_default, server_callback_group_
+    );
 
     BatteryChargePauseTask_server = this->create_service<robot_msgs::srv::BatteryChargePauseTask>(
         "BatteryChargePauseTask_service",
-        std::bind(&Task_Execute::BatteryChargePauseTaskHandle, this, _1, _2));
+        std::bind(&Task_Execute::BatteryChargePauseTaskHandle, this, _1, _2),
+        rmw_qos_profile_services_default, server_callback_group_
+    );
 
     BatteryChargeStartTask_server = this->create_service<robot_msgs::srv::BatteryChargeStartTask>(
         "BatteryChargeStartTask_service",
-        std::bind(&Task_Execute::BatteryChargeStartTaskHandle, this, _1, _2));
+        std::bind(&Task_Execute::BatteryChargeStartTaskHandle, this, _1, _2),
+        rmw_qos_profile_services_default, server_callback_group_
+    );
 
     ModeChangePauseTask_server = this->create_service<robot_msgs::srv::ModeChangePauseTask>(
         "ModeChangePauseTask_service",
-        std::bind(&Task_Execute::ModeChangePauseTaskHandle, this, _1, _2));
+        std::bind(&Task_Execute::ModeChangePauseTaskHandle, this, _1, _2),
+        rmw_qos_profile_services_default, server_callback_group_
+    );
 
     ModeChangeStartTask_server = this->create_service<robot_msgs::srv::ModeChangeStartTask>(
         "ModeChangeStartTask_service",
@@ -192,11 +207,15 @@ void Task_Execute::NodeServiceServerInit()
     {
         AvoidObstaclesPauseTask_server = this->create_service<robot_msgs::srv::AvoidObstaclesPauseTask>(
             "AvoidObstaclesPauseTask_service",
-            std::bind(&Task_Execute::AvoidObstaclesPauseTaskHandle, this, _1, _2));
+            std::bind(&Task_Execute::AvoidObstaclesPauseTaskHandle, this, _1, _2),
+            rmw_qos_profile_services_default, server_callback_group_
+        );
 
         AvoidObstaclesStartTask_server = this->create_service<robot_msgs::srv::AvoidObstaclesStartTask>(
             "AvoidObstaclesStartTask_service",
-            std::bind(&Task_Execute::AvoidObstaclesStartTaskHandle, this, _1, _2));
+            std::bind(&Task_Execute::AvoidObstaclesStartTaskHandle, this, _1, _2),
+            rmw_qos_profile_services_default, server_callback_group_
+        );
     }
 }
 
@@ -224,13 +243,6 @@ std::string Task_Execute::generateRandomUUID()
     }
 
     return uuid.str();
-}
-
-void Task_Execute::NodeSpinnerStartup()
-{
-    rclcpp::executors::MultiThreadedExecutor executor;
-    executor.add_node(this->get_node_base_interface());
-    executor.spin();
 }
 
 /********************************************************任务控制*************************************************************/
@@ -1406,25 +1418,25 @@ void Task_Execute::TaskExecute(const std::string task_ticket)
 
                 if (!other_task_execute_or_pause)
                 {
-                    robot_msgs::srv::CtrlModeQuery::Request::SharedPtr request;
-                    auto res_callback = [this, task_execute_info_local](rclcpp::Client<robot_msgs::srv::CtrlModeQuery>::SharedFuture future)
+                    robot_msgs::srv::CtrlModeQuery::Request::SharedPtr CMQ_request;
+                    
+                    auto CMQ_future = CtrlModeQuery_client->async_send_request(CMQ_request);
+                    if (CMQ_future.wait_for(milliseconds(100)) == std::future_status::ready)
                     {
-                        auto response = future.get();
-                        if(response->runtime_ctrl_mode == 0)
+                        auto CMQ_response = CMQ_future.get();
+                        if(CMQ_response->runtime_ctrl_mode == 0)
                         {
                             for (size_t i = 0; i < task_execute_infos.size(); i++)
                             {
                                 if (task_execute_infos[i].task_ticket == task_execute_info_local.task_ticket)
                                 {
                                     task_execute_infos[i].task_execute_flag = "execute";
-                                    PlanTaskStartAuto(task_execute_infos[i]);
-                                    break;
                                 }
                             }    
-                        }   
-                    };
-                    
-                    auto future = CtrlModeQuery_client->async_send_request(request, res_callback);
+                            task_execute_info_local.task_execute_flag = "execute";
+                            PlanTaskStartAuto(task_execute_info_local);
+                        }  
+                    }
                 }
             }
         }
@@ -1605,12 +1617,16 @@ void Task_Execute::ExecuteMonitorPoint(const task_execute_info task_execute_info
 
         if (robot_move_flag)
         {
-            auto MC2P_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::MotorCtrltoPosSrv>::SharedFuture>();
-            auto MC2P_res_callback = [this, MC2P_request, MC2P_shared_future_ptr, &robot_move_flag, task_execute_info_local, monitor_point, monitor_point_pos](rclcpp::Client<robot_msgs::srv::MotorCtrltoPosSrv>::SharedFuture future)
+            auto MC2P_future = MotorCtrltoPosSrv_client->async_send_request(MC2P_request);
+            if (MC2P_future.wait_for(milliseconds(100)) != std::future_status::ready)
             {
-                *MC2P_shared_future_ptr = future;
-                auto response = future.get();
-                if (!response->execute_success)
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Robot failed to start nav process (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                robot_move_flag = false;
+            }
+            else
+            {
+                auto MC2P_response = MC2P_future.get();
+                if (!MC2P_response->execute_success)
                 {
                     RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Robot nav process cancelled (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
                     robot_move_flag = false;
@@ -1619,21 +1635,7 @@ void Task_Execute::ExecuteMonitorPoint(const task_execute_info task_execute_info
                 {
                     RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Robot successfully move to " << monitor_point_pos << "!");
                 }
-            };
-            
-            auto MC2P_future = MotorCtrltoPosSrv_client->async_send_request(MC2P_request, MC2P_res_callback);
-            *MC2P_shared_future_ptr = MC2P_future.future;
-            
-            auto MC2P_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                [this, MC2P_shared_future_ptr, &robot_move_flag, task_execute_info_local, monitor_point]()
-                {
-                    if (MC2P_shared_future_ptr->valid() &&
-                        MC2P_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                    {
-                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Robot failed to start nav process (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                        robot_move_flag = false;
-                    }
-                });
+            }
         }
     }
 
@@ -1666,103 +1668,73 @@ void Task_Execute::ExecuteMonitorPoint(const task_execute_info task_execute_info
             if (arm_init_flag)
             {
                 lift_request->position = 0.0;
-                auto lift_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::LiftCtrlSrv>::SharedFuture>();
-                auto lift_res_callback = [this, lift_request, lift_shared_future_ptr, &arm_init_flag, task_execute_info_local, monitor_point, monitor_point_lift_pos](rclcpp::Client<robot_msgs::srv::LiftCtrlSrv>::SharedFuture future)
+                auto lift_future = LiftCtrlSrv_client->async_send_request(lift_request);
+                if (lift_future.wait_for(milliseconds(100)) != std::future_status::ready)
                 {
-                    *lift_shared_future_ptr = future;
-                    auto response = future.get();
-                    if (!response->execute_success)
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift target pos(" << lift_request->position << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                    arm_init_flag = false;
+                }
+                else
+                {
+                    auto lift_response = lift_future.get();
+                    if (!lift_response->execute_success)
                     {
                         RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift failed to move to target pos(" << lift_request->position << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
                         arm_init_flag = false;
                     }
                     else
                     {
-                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift successfully move to target pos: " << monitor_point_lift_pos << "!");
+                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift successfully move to target pos: " << lift_request->position << "!");
                     }
-                };
-                
-                auto lift_future = LiftCtrlSrv_client->async_send_request(lift_request, lift_res_callback);
-                *lift_shared_future_ptr = lift_future.future;
-                
-                auto lift_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                    [this, lift_shared_future_ptr, lift_request, &arm_init_flag, task_execute_info_local, monitor_point]()
-                    {
-                        if (lift_shared_future_ptr->valid() &&
-                            lift_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                        {
-                            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift target pos(" << lift_request->position << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                            arm_init_flag = false;
-                        }
-                    });
+                }
             }
 
             if (arm_init_flag)
             {
                 arm_request->pos_key = "posinit";
-                auto arm_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-                auto arm_res_callback = [this, arm_request, arm_shared_future_ptr, &arm_init_flag, task_execute_info_local, monitor_point, monitor_point_arm_pos](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+                if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
                 {
-                    *arm_shared_future_ptr = future;
-                    auto response = future.get();
-                    if (!response->execute_success)
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                    arm_init_flag = false;
+                }
+                else
+                {
+                    auto arm_response = arm_future.get();
+                    if (!arm_response->execute_success)
                     {
                         RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
                         arm_init_flag = false;
                     }
                     else
                     {
-                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << monitor_point_arm_pos << "!");
+                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
                     }
-                };
-                
-                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback);
-                *arm_shared_future_ptr = arm_future.future;
-                
-                auto arm_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                    [this, arm_shared_future_ptr, arm_request, &arm_init_flag, task_execute_info_local, monitor_point]()
-                    {
-                        if (arm_shared_future_ptr->valid() &&
-                            arm_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                        {
-                            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                            arm_init_flag = false;
-                        }
-                    });
+                }
             }
 
             if (arm_init_flag)
             {
                 arm_request->pos_key = "posleftend";
-                auto arm_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-                auto arm_res_callback = [this, arm_request, arm_shared_future_ptr, &arm_init_flag, task_execute_info_local, monitor_point, monitor_point_arm_pos](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+                if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
                 {
-                    *arm_shared_future_ptr = future;
-                    auto response = future.get();
-                    if (!response->execute_success)
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                    arm_init_flag = false;
+                }
+                else
+                {
+                    auto arm_response = arm_future.get();
+                    if (!arm_response->execute_success)
                     {
                         RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
                         arm_init_flag = false;
                     }
                     else
                     {
-                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << monitor_point_arm_pos << "!");
+                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
                     }
-                };
-                
-                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback);
-                *arm_shared_future_ptr = arm_future.future;
-                
-                auto arm_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                    [this, arm_shared_future_ptr, arm_request, &arm_init_flag, task_execute_info_local, monitor_point]()
-                    {
-                        if (arm_shared_future_ptr->valid() &&
-                            arm_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                        {
-                            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                            arm_init_flag = false;
-                        }
-                    });
+                }
             }
         }
         else if (device_type == "e_robot_track")
@@ -1771,35 +1743,25 @@ void Task_Execute::ExecuteMonitorPoint(const task_execute_info task_execute_info
             if (arm_init_flag)
             {
                 arm_request->pos_key = "posstart";
-                auto arm_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-                auto arm_res_callback = [this, arm_request, arm_shared_future_ptr, &arm_init_flag, task_execute_info_local, monitor_point, monitor_point_arm_pos](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+                if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
                 {
-                    *arm_shared_future_ptr = future;
-                    auto response = future.get();
-                    if (!response->execute_success)
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                    arm_init_flag = false;
+                }
+                else
+                {
+                    auto arm_response = arm_future.get();
+                    if (!arm_response->execute_success)
                     {
                         RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
                         arm_init_flag = false;
                     }
                     else
                     {
-                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << monitor_point_arm_pos << "!");
+                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
                     }
-                };
-                
-                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback);
-                *arm_shared_future_ptr = arm_future.future;
-                
-                auto arm_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                    [this, arm_shared_future_ptr, arm_request, &arm_init_flag, task_execute_info_local, monitor_point]()
-                    {
-                        if (arm_shared_future_ptr->valid() &&
-                            arm_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                        {
-                            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                            arm_init_flag = false;
-                        }
-                    });
+                }
             }
         }
     }
@@ -1833,69 +1795,49 @@ void Task_Execute::ExecuteMonitorPoint(const task_execute_info task_execute_info
             if (arm_move_flag)
             {
                 arm_request->pos_key = monitor_point_arm_pos;
-                auto arm_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-                auto arm_res_callback = [this, arm_request, arm_shared_future_ptr, &arm_move_flag, task_execute_info_local, monitor_point, monitor_point_arm_pos](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+                if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
                 {
-                    *arm_shared_future_ptr = future;
-                    auto response = future.get();
-                    if (!response->execute_success)
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                    arm_init_flag = false;
+                }
+                else
+                {
+                    auto arm_response = arm_future.get();
+                    if (!arm_response->execute_success)
                     {
                         RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                        arm_move_flag = false;
+                        arm_init_flag = false;
                     }
                     else
                     {
                         RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << monitor_point_arm_pos << "!");
                     }
-                };
-                
-                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback);
-                *arm_shared_future_ptr = arm_future.future;
-                
-                auto arm_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                    [this, arm_shared_future_ptr, arm_request, &arm_move_flag, task_execute_info_local, monitor_point]()
-                    {
-                        if (arm_shared_future_ptr->valid() &&
-                            arm_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                        {
-                            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                            arm_move_flag = false;
-                        }
-                    });
+                }
             }
 
             if (arm_move_flag)
             {
                 lift_request->position = monitor_point_lift_pos;
-                auto lift_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::LiftCtrlSrv>::SharedFuture>();
-                auto lift_res_callback = [this, lift_request, lift_shared_future_ptr, &arm_move_flag, task_execute_info_local, monitor_point, monitor_point_lift_pos](rclcpp::Client<robot_msgs::srv::LiftCtrlSrv>::SharedFuture future)
+                auto lift_future = LiftCtrlSrv_client->async_send_request(lift_request);
+                if (lift_future.wait_for(milliseconds(100)) != std::future_status::ready)
                 {
-                    *lift_shared_future_ptr = future;
-                    auto response = future.get();
-                    if (!response->execute_success)
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift target pos(" << lift_request->position << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                    arm_init_flag = false;
+                }
+                else
+                {
+                    auto lift_response = lift_future.get();
+                    if (!lift_response->execute_success)
                     {
                         RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift failed to move to target pos(" << lift_request->position << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                        arm_move_flag = false;
+                        arm_init_flag = false;
                     }
                     else
                     {
                         RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift successfully move to target pos: " << monitor_point_lift_pos << "!");
                     }
-                };
-                
-                auto lift_future = LiftCtrlSrv_client->async_send_request(lift_request, lift_res_callback);
-                *lift_shared_future_ptr = lift_future.future;
-                
-                auto lift_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                    [this, lift_shared_future_ptr, lift_request, &arm_move_flag, task_execute_info_local, monitor_point]()
-                    {
-                        if (lift_shared_future_ptr->valid() &&
-                            lift_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                        {
-                            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift target pos(" << lift_request->position << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                            arm_move_flag = false;
-                        }
-                    });
+                }
             }
         }
         else
@@ -1903,69 +1845,49 @@ void Task_Execute::ExecuteMonitorPoint(const task_execute_info task_execute_info
             if (arm_move_flag)
             {
                 lift_request->position = monitor_point_lift_pos;
-                auto lift_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::LiftCtrlSrv>::SharedFuture>();
-                auto lift_res_callback = [this, lift_request, lift_shared_future_ptr, &arm_move_flag, task_execute_info_local, monitor_point, monitor_point_lift_pos](rclcpp::Client<robot_msgs::srv::LiftCtrlSrv>::SharedFuture future)
+                auto lift_future = LiftCtrlSrv_client->async_send_request(lift_request);
+                if (lift_future.wait_for(milliseconds(100)) != std::future_status::ready)
                 {
-                    *lift_shared_future_ptr = future;
-                    auto response = future.get();
-                    if (!response->execute_success)
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift target pos(" << lift_request->position << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                    arm_init_flag = false;
+                }
+                else
+                {
+                    auto lift_response = lift_future.get();
+                    if (!lift_response->execute_success)
                     {
                         RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift failed to move to target pos(" << lift_request->position << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                        arm_move_flag = false;
+                        arm_init_flag = false;
                     }
                     else
                     {
                         RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift successfully move to target pos: " << monitor_point_lift_pos << "!");
                     }
-                };
-                
-                auto lift_future = LiftCtrlSrv_client->async_send_request(lift_request, lift_res_callback);
-                *lift_shared_future_ptr = lift_future.future;
-                
-                auto lift_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                    [this, lift_shared_future_ptr, lift_request, &arm_move_flag, task_execute_info_local, monitor_point]()
-                    {
-                        if (lift_shared_future_ptr->valid() &&
-                            lift_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                        {
-                            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift target pos(" << lift_request->position << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                            arm_move_flag = false;
-                        }
-                    });
+                }
             }
 
             if (arm_move_flag)
             {
                 arm_request->pos_key = monitor_point_arm_pos;
-                auto arm_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-                auto arm_res_callback = [this, arm_request, arm_shared_future_ptr, &arm_move_flag, task_execute_info_local, monitor_point, monitor_point_arm_pos](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+                if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
                 {
-                    *arm_shared_future_ptr = future;
-                    auto response = future.get();
-                    if (!response->execute_success)
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                    arm_init_flag = false;
+                }
+                else
+                {
+                    auto arm_response = arm_future.get();
+                    if (!arm_response->execute_success)
                     {
                         RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                        arm_move_flag = false;
+                        arm_init_flag = false;
                     }
                     else
                     {
                         RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << monitor_point_arm_pos << "!");
                     }
-                };
-                
-                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback);
-                *arm_shared_future_ptr = arm_future.future;
-                
-                auto arm_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                    [this, arm_shared_future_ptr, arm_request, &arm_move_flag, task_execute_info_local, monitor_point]()
-                    {
-                        if (arm_shared_future_ptr->valid() &&
-                            arm_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                        {
-                            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                            arm_move_flag = false;
-                        }
-                    });
+                }
             }
         }
     }
@@ -1976,35 +1898,25 @@ void Task_Execute::ExecuteMonitorPoint(const task_execute_info task_execute_info
         if (arm_move_flag)
         {
             arm_request->pos_key = monitor_point_arm_pos;
-            auto arm_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-            auto arm_res_callback = [this, arm_request, arm_shared_future_ptr, &arm_move_flag, task_execute_info_local, monitor_point, monitor_point_arm_pos](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+            auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+            if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
             {
-                *arm_shared_future_ptr = future;
-                auto response = future.get();
-                if (!response->execute_success)
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                arm_init_flag = false;
+            }
+            else
+            {
+                auto arm_response = arm_future.get();
+                if (!arm_response->execute_success)
                 {
                     RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                    arm_move_flag = false;
+                    arm_init_flag = false;
                 }
                 else
                 {
                     RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << monitor_point_arm_pos << "!");
                 }
-            };
-            
-            auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback);
-            *arm_shared_future_ptr = arm_future.future;
-            
-            auto arm_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                [this, arm_shared_future_ptr, arm_request, &arm_move_flag, task_execute_info_local, monitor_point]()
-                {
-                    if (arm_shared_future_ptr->valid() &&
-                        arm_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                    {
-                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                        arm_move_flag = false;
-                    }
-                });
+            }
         }
     }
     else if (device_type == "e_robot_quadrupedal")
@@ -2014,35 +1926,25 @@ void Task_Execute::ExecuteMonitorPoint(const task_execute_info task_execute_info
         if (arm_move_flag)
         {
             arm_request->pos_key = monitor_point_arm_pos;
-            auto arm_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-            auto arm_res_callback = [this, arm_request, arm_shared_future_ptr, &arm_move_flag, task_execute_info_local, monitor_point, monitor_point_arm_pos](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+            auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+            if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
             {
-                *arm_shared_future_ptr = future;
-                auto response = future.get();
-                if (!response->execute_success)
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                arm_init_flag = false;
+            }
+            else
+            {
+                auto arm_response = arm_future.get();
+                if (!arm_response->execute_success)
                 {
                     RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                    arm_move_flag = false;
+                    arm_init_flag = false;
                 }
                 else
                 {
                     RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << monitor_point_arm_pos << "!");
                 }
-            };
-            
-            auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback);
-            *arm_shared_future_ptr = arm_future.future;
-            
-            auto arm_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                [this, arm_shared_future_ptr, arm_request, &arm_move_flag, task_execute_info_local, monitor_point]()
-                {
-                    if (arm_shared_future_ptr->valid() &&
-                        arm_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                    {
-                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                        arm_move_flag = false;
-                    }
-                });
+            }
         }
     }
 
@@ -2246,13 +2148,17 @@ void Task_Execute::ExecuteMonitorPoint(const task_execute_info task_execute_info
         TDC_request->monitor_points = monitor_point;
 
         std::this_thread::sleep_for(std::chrono::seconds(ImgDataCollectWaitTime));
-
-        auto TDC_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::TaskDataCollectSrv>::SharedFuture>();
-        auto TDC_res_callback = [this, TDC_request, TDC_shared_future_ptr, &TaskDataCollect_flag, task_execute_info_local, monitor_point](rclcpp::Client<robot_msgs::srv::TaskDataCollectSrv>::SharedFuture future)
+        
+        auto TDC_future = TaskDataCollectSrv_client->async_send_request(TDC_request);
+        if (TDC_future.wait_for(milliseconds(100)) != std::future_status::ready)
         {
-            *TDC_shared_future_ptr = future;
-            auto response = future.get();
-            if (!response->execute_success)
+            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): VisCam or IrCam or V3dCam failed to init (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+            TaskDataCollect_flag = false;
+        }
+        else
+        {
+            auto TDC_response = TDC_future.get();
+            if (!TDC_response->execute_success)
             {
                 RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): VisCam or IrCam or V3dCam failed to collect data (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
                 TaskDataCollect_flag = false;
@@ -2261,21 +2167,7 @@ void Task_Execute::ExecuteMonitorPoint(const task_execute_info task_execute_info
             {
                 RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Successfully collect data in monitor_point: " << monitor_point << "!");
             }
-        };
-        
-        auto TDC_future = TaskDataCollectSrv_client->async_send_request(TDC_request, TDC_res_callback);
-        *TDC_shared_future_ptr = TDC_future.future;
-        
-        auto TDC_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-            [this, TDC_shared_future_ptr, &TaskDataCollect_flag, task_execute_info_local, monitor_point]()
-            {
-                if (TDC_shared_future_ptr->valid() &&
-                    TDC_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                {
-                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): VisCam or IrCam or V3dCam failed to init (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                    TaskDataCollect_flag = false;
-                }
-            });
+        }
     }
 
     bool eLightOff_flag;
@@ -2323,136 +2215,96 @@ void Task_Execute::ExecuteMonitorPoint(const task_execute_info task_execute_info
     bool arm_home_flag_local = true;
     if (device_type == "e_robot_crawler")
     {
-        robot_msgs::srv::LiftCtrlSrv::Request::SharedPtr lift_request;
-        robot_msgs::srv::ArmCtrlSrv::Request::SharedPtr arm_request;
-        
         if (monitor_point_arm_pos == "pos12" || monitor_point_pos != monitor_point_next_pos)
         {
+            robot_msgs::srv::LiftCtrlSrv::Request::SharedPtr lift_request;
+            robot_msgs::srv::ArmCtrlSrv::Request::SharedPtr arm_request;
+            
             arm_request->pos_key = "posrightend";
-            auto arm_shared_future_ptr1 = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-            auto arm_res_callback1 = [this, arm_request, arm_shared_future_ptr1, &arm_move_flag, task_execute_info_local, monitor_point, monitor_point_arm_pos](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+            auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+            if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
             {
-                *arm_shared_future_ptr1 = future;
-                auto response = future.get();
-                if (!response->execute_success)
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                arm_move_flag = false;
+            }
+            else
+            {
+                auto arm_response = arm_future.get();
+                if (!arm_response->execute_success)
                 {
                     RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
                     arm_move_flag = false;
                 }
                 else
                 {
-                    RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << monitor_point_arm_pos << "!");
+                    RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
                 }
-            };
-            
-            auto arm_future1 = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback1);
-            *arm_shared_future_ptr1 = arm_future1.future;
-            
-            auto arm_timer1 = this->create_wall_timer(std::chrono::milliseconds(500),
-                [this, arm_shared_future_ptr1, arm_request, &arm_move_flag, task_execute_info_local, monitor_point]()
-                {
-                    if (arm_shared_future_ptr1->valid() &&
-                        arm_shared_future_ptr1->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                    {
-                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                        arm_move_flag = false;
-                    }
-                });
+            }
 
             arm_request->pos_key = "posinit";
-            auto arm_shared_future_ptr2 = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-            auto arm_res_callback2 = [this, arm_request, arm_shared_future_ptr2, &arm_move_flag, task_execute_info_local, monitor_point, monitor_point_arm_pos](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+            arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+            if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
             {
-                *arm_shared_future_ptr2 = future;
-                auto response = future.get();
-                if (!response->execute_success)
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                arm_move_flag = false;
+            }
+            else
+            {
+                auto arm_response = arm_future.get();
+                if (!arm_response->execute_success)
                 {
                     RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
                     arm_move_flag = false;
                 }
                 else
                 {
-                    RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << monitor_point_arm_pos << "!");
+                    RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
                 }
-            };
-            
-            auto arm_future2 = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback2);
-            *arm_shared_future_ptr2 = arm_future2.future;
-            
-            auto arm_timer2 = this->create_wall_timer(std::chrono::milliseconds(500),
-                [this, arm_shared_future_ptr2, arm_request, &arm_move_flag, task_execute_info_local, monitor_point]()
-                {
-                    if (arm_shared_future_ptr2->valid() &&
-                        arm_shared_future_ptr2->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                    {
-                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                        arm_move_flag = false;
-                    }
-                });
+            }
 
             arm_request->pos_key = "poshome";
-            auto arm_shared_future_ptr3 = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-            auto arm_res_callback3 = [this, arm_request, arm_shared_future_ptr3, &arm_move_flag, task_execute_info_local, monitor_point, monitor_point_arm_pos](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+            arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+            if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
             {
-                *arm_shared_future_ptr3 = future;
-                auto response = future.get();
-                if (!response->execute_success)
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                arm_move_flag = false;
+            }
+            else
+            {
+                auto arm_response = arm_future.get();
+                if (!arm_response->execute_success)
                 {
                     RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
                     arm_move_flag = false;
                 }
                 else
                 {
-                    RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << monitor_point_arm_pos << "!");
+                    RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
                 }
-            };
-            
-            auto arm_future3 = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback3);
-            *arm_shared_future_ptr3 = arm_future3.future;
-            
-            auto arm_timer3 = this->create_wall_timer(std::chrono::milliseconds(500),
-                [this, arm_shared_future_ptr3, arm_request, &arm_move_flag, task_execute_info_local, monitor_point]()
-                {
-                    if (arm_shared_future_ptr3->valid() &&
-                        arm_shared_future_ptr3->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                    {
-                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                        arm_move_flag = false;
-                    }
-                });
+            }
 
             if (arm_home_flag)
             {
                 lift_request->position = 0.0;
-                auto lift_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::LiftCtrlSrv>::SharedFuture>();
-                auto lift_res_callback = [this, lift_request, lift_shared_future_ptr, &arm_move_flag, task_execute_info_local, monitor_point, monitor_point_lift_pos](rclcpp::Client<robot_msgs::srv::LiftCtrlSrv>::SharedFuture future)
+                auto lift_future = LiftCtrlSrv_client->async_send_request(lift_request);
+                if (lift_future.wait_for(milliseconds(100)) != std::future_status::ready)
                 {
-                    *lift_shared_future_ptr = future;
-                    auto response = future.get();
-                    if (!response->execute_success)
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift target pos(" << lift_request->position << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                    arm_init_flag = false;
+                }
+                else
+                {
+                    auto lift_response = lift_future.get();
+                    if (!lift_response->execute_success)
                     {
                         RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift failed to move to target pos(" << lift_request->position << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                        arm_move_flag = false;
+                        arm_init_flag = false;
                     }
                     else
                     {
-                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift successfully move to target pos: " << monitor_point_lift_pos << "!");
+                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift successfully move to target pos: " << lift_request->position << "!");
                     }
-                };
-                
-                auto lift_future = LiftCtrlSrv_client->async_send_request(lift_request, lift_res_callback);
-                *lift_shared_future_ptr = lift_future.future;
-                
-                auto lift_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                    [this, lift_shared_future_ptr, lift_request, &arm_move_flag, task_execute_info_local, monitor_point]()
-                    {
-                        if (lift_shared_future_ptr->valid() &&
-                            lift_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                        {
-                            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Lift target pos(" << lift_request->position << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                            arm_move_flag = false;
-                        }
-                    });
+                }
             }
 
             for (size_t i = 0; i < task_execute_infos.size(); i++)
@@ -2472,35 +2324,25 @@ void Task_Execute::ExecuteMonitorPoint(const task_execute_info task_execute_info
             if (arm_home_flag)
             {
                 arm_request->pos_key = "poshome";
-                auto arm_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-                auto arm_res_callback = [this, arm_request, arm_shared_future_ptr, &arm_move_flag, task_execute_info_local, monitor_point, monitor_point_arm_pos](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+                if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
                 {
-                    *arm_shared_future_ptr = future;
-                    auto response = future.get();
-                    if (!response->execute_success)
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                    arm_move_flag = false;
+                }
+                else
+                {
+                    auto arm_response = arm_future.get();
+                    if (!arm_response->execute_success)
                     {
                         RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
                         arm_move_flag = false;
                     }
                     else
                     {
-                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << monitor_point_arm_pos << "!");
+                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
                     }
-                };
-                
-                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback);
-                *arm_shared_future_ptr = arm_future.future;
-                
-                auto arm_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                    [this, arm_shared_future_ptr, arm_request, &arm_move_flag, task_execute_info_local, monitor_point]()
-                    {
-                        if (arm_shared_future_ptr->valid() &&
-                            arm_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                        {
-                            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                            arm_move_flag = false;
-                        }
-                    });
+                }
             }
 
             for (size_t i = 0; i < task_execute_infos.size(); i++)
@@ -2520,35 +2362,25 @@ void Task_Execute::ExecuteMonitorPoint(const task_execute_info task_execute_info
             if (arm_home_flag)
             {
                 arm_request->pos_key = "poshome";
-                auto arm_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-                auto arm_res_callback = [this, arm_request, arm_shared_future_ptr, &arm_move_flag, task_execute_info_local, monitor_point, monitor_point_arm_pos](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+                if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
                 {
-                    *arm_shared_future_ptr = future;
-                    auto response = future.get();
-                    if (!response->execute_success)
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
+                    arm_move_flag = false;
+                }
+                else
+                {
+                    auto arm_response = arm_future.get();
+                    if (!arm_response->execute_success)
                     {
                         RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
                         arm_move_flag = false;
                     }
                     else
                     {
-                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << monitor_point_arm_pos << "!");
+                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
                     }
-                };
-                
-                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback);
-                *arm_shared_future_ptr = arm_future.future;
-                
-                auto arm_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                    [this, arm_shared_future_ptr, arm_request, &arm_move_flag, task_execute_info_local, monitor_point]()
-                    {
-                        if (arm_shared_future_ptr->valid() &&
-                            arm_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                        {
-                            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteMonitorPoint(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << " - " << monitor_point << ")!");
-                            arm_move_flag = false;
-                        }
-                    });
+                }
             }
 
             for (size_t i = 0; i < task_execute_infos.size(); i++)
@@ -3514,12 +3346,16 @@ bool Task_Execute::ExecuteRobotHomeStatus(const task_execute_info task_execute_i
             robot_msgs::srv::ArmCtrlSrv::Request::SharedPtr arm_request;
 
             arm_request->pos_key = "posrightend";
-            auto arm_shared_future_ptr1 = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-            auto arm_res_callback1 = [this, arm_request, arm_shared_future_ptr1, &arm_home_flag_local, task_execute_info_local](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+            auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+            if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
             {
-                *arm_shared_future_ptr1 = future;
-                auto response = future.get();
-                if (!response->execute_success)
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << ")!");
+                arm_home_flag_local = false;
+            }
+            else
+            {
+                auto arm_response = arm_future.get();
+                if (!arm_response->execute_success)
                 {
                     RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << ")!");
                     arm_home_flag_local = false;
@@ -3528,29 +3364,19 @@ bool Task_Execute::ExecuteRobotHomeStatus(const task_execute_info task_execute_i
                 {
                     RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
                 }
-            };
-            
-            auto arm_future1 = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback1);
-            *arm_shared_future_ptr1 = arm_future1.future;
-            
-            auto arm_timer1 = this->create_wall_timer(std::chrono::milliseconds(500),
-                [this, arm_shared_future_ptr1, arm_request, &arm_home_flag_local, task_execute_info_local]()
-                {
-                    if (arm_shared_future_ptr1->valid() &&
-                        arm_shared_future_ptr1->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                    {
-                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << ")!");
-                        arm_home_flag_local = false;
-                    }
-                });
-
+            }
+        
             arm_request->pos_key = "posinit";
-            auto arm_shared_future_ptr2 = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-            auto arm_res_callback2 = [this, arm_request, arm_shared_future_ptr2, &arm_home_flag_local, task_execute_info_local](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+            arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+            if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
             {
-                *arm_shared_future_ptr2 = future;
-                auto response = future.get();
-                if (!response->execute_success)
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << ")!");
+                arm_home_flag_local = false;
+            }
+            else
+            {
+                auto arm_response = arm_future.get();
+                if (!arm_response->execute_success)
                 {
                     RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << ")!");
                     arm_home_flag_local = false;
@@ -3559,29 +3385,19 @@ bool Task_Execute::ExecuteRobotHomeStatus(const task_execute_info task_execute_i
                 {
                     RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
                 }
-            };
-            
-            auto arm_future2 = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback2);
-            *arm_shared_future_ptr2 = arm_future2.future;
-            
-            auto arm_timer2 = this->create_wall_timer(std::chrono::milliseconds(500),
-                [this, arm_shared_future_ptr2, arm_request, &arm_home_flag_local, task_execute_info_local]()
-                {
-                    if (arm_shared_future_ptr2->valid() &&
-                        arm_shared_future_ptr2->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                    {
-                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << ")!");
-                        arm_home_flag_local = false;
-                    }
-                });
+            }
 
             arm_request->pos_key = "poshome";
-            auto arm_shared_future_ptr3 = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-            auto arm_res_callback3 = [this, arm_request, arm_shared_future_ptr3, &arm_home_flag_local, task_execute_info_local](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+            arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+            if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
             {
-                *arm_shared_future_ptr3 = future;
-                auto response = future.get();
-                if (!response->execute_success)
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << ")!");
+                arm_home_flag_local = false;
+            }
+            else
+            {
+                auto arm_response = arm_future.get();
+                if (!arm_response->execute_success)
                 {
                     RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << ")!");
                     arm_home_flag_local = false;
@@ -3590,54 +3406,30 @@ bool Task_Execute::ExecuteRobotHomeStatus(const task_execute_info task_execute_i
                 {
                     RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
                 }
-            };
-            
-            auto arm_future3 = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback3);
-            *arm_shared_future_ptr3 = arm_future3.future;
-            
-            auto arm_timer3 = this->create_wall_timer(std::chrono::milliseconds(500),
-                [this, arm_shared_future_ptr3, arm_request, &arm_home_flag_local, task_execute_info_local]()
-                {
-                    if (arm_shared_future_ptr3->valid() &&
-                        arm_shared_future_ptr3->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                    {
-                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << ")!");
-                        arm_home_flag_local = false;
-                    }
-                });
+            }
 
             if (arm_home_flag)
             {
                 lift_request->position = 0.0;
-                auto lift_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::LiftCtrlSrv>::SharedFuture>();
-                auto lift_res_callback = [this, lift_request, lift_shared_future_ptr, &arm_home_flag_local, task_execute_info_local](rclcpp::Client<robot_msgs::srv::LiftCtrlSrv>::SharedFuture future)
+                auto lift_future = LiftCtrlSrv_client->async_send_request(lift_request);
+                if (lift_future.wait_for(milliseconds(100)) != std::future_status::ready)
                 {
-                    *lift_shared_future_ptr = future;
-                    auto response = future.get();
-                    if (!response->execute_success)
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Lift target pos(" << lift_request->position<< ") is out of range (" << task_execute_info_local.task_ticket << ")!");
+                    arm_home_flag_local = false;
+                }
+                else
+                {
+                    auto lift_response = lift_future.get();
+                    if (!lift_response->execute_success)
                     {
                         RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Lift failed to move to target pos(" << lift_request->position<< ") (" << task_execute_info_local.task_ticket << ")!");
                         arm_home_flag_local = false;
                     }
                     else
-                    {
+                    {   
                         RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Lift successfully move to target pos: " << lift_request->position << "!");
                     }
-                };
-                
-                auto lift_future = LiftCtrlSrv_client->async_send_request(lift_request, lift_res_callback);
-                *lift_shared_future_ptr = lift_future.future;
-                
-                auto lift_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                    [this, lift_shared_future_ptr, lift_request, &arm_home_flag_local, task_execute_info_local]()
-                    {
-                        if (lift_shared_future_ptr->valid() &&
-                            lift_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                        {
-                            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Lift target pos(" << lift_request->position<< ") is out of range (" << task_execute_info_local.task_ticket << ")!");
-                            arm_home_flag_local = false;
-                        }
-                    });
+                }
             }
         }
         else if (device_type == "e_robot_track")
@@ -3646,35 +3438,25 @@ bool Task_Execute::ExecuteRobotHomeStatus(const task_execute_info task_execute_i
             if (arm_home_flag)
             {
                 arm_request->pos_key = "poshome";
-            auto arm_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-            auto arm_res_callback = [this, arm_request, arm_shared_future_ptr, &arm_home_flag_local, task_execute_info_local](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
-            {
-                *arm_shared_future_ptr = future;
-                auto response = future.get();
-                if (!response->execute_success)
+                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+                if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
                 {
-                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << ")!");
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << ")!");
                     arm_home_flag_local = false;
                 }
                 else
                 {
-                    RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
-                }
-            };
-            
-            auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback);
-            *arm_shared_future_ptr = arm_future.future;
-            
-            auto arm_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                [this, arm_shared_future_ptr, arm_request, &arm_home_flag_local, task_execute_info_local]()
-                {
-                    if (arm_shared_future_ptr->valid() &&
-                        arm_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+                    auto arm_response = arm_future.get();
+                    if (!arm_response->execute_success)
                     {
-                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << ")!");
+                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << ")!");
                         arm_home_flag_local = false;
                     }
-                });
+                    else
+                    {
+                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
+                    }
+                }
             }
         }
         else if (device_type == "e_robot_quadrupedal")
@@ -3683,35 +3465,25 @@ bool Task_Execute::ExecuteRobotHomeStatus(const task_execute_info task_execute_i
             if (arm_home_flag)
             {
                 arm_request->pos_key = "poshome";
-            auto arm_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-            auto arm_res_callback = [this, arm_request, arm_shared_future_ptr, &arm_home_flag_local, task_execute_info_local](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
-            {
-                *arm_shared_future_ptr = future;
-                auto response = future.get();
-                if (!response->execute_success)
+                auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+                if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
                 {
-                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << ")!");
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << ")!");
                     arm_home_flag_local = false;
                 }
                 else
                 {
-                    RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
-                }
-            };
-            
-            auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback);
-            *arm_shared_future_ptr = arm_future.future;
-            
-            auto arm_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                [this, arm_shared_future_ptr, arm_request, &arm_home_flag_local, task_execute_info_local]()
-                {
-                    if (arm_shared_future_ptr->valid() &&
-                        arm_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+                    auto arm_response = arm_future.get();
+                    if (!arm_response->execute_success)
                     {
-                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm target pos(" << arm_request->pos_key << ") is out of range (" << task_execute_info_local.task_ticket << ")!");
+                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm failed to move to target pos(" << arm_request->pos_key << ") (" << task_execute_info_local.task_ticket << ")!");
                         arm_home_flag_local = false;
                     }
-                });
+                    else
+                    {
+                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ExecuteRobotHomeStatus(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
+                    }
+                }
             }
         }
 
@@ -4209,30 +3981,20 @@ void Task_Execute::CronPlanTaskStart(CronPlanTask& single_cron_plan_task)
 {   
     std::string plan_task_status = "e_started";
     robot_msgs::srv::CtrlModeQuery::Request::SharedPtr CMQ_request;
-    auto CMQ_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::CtrlModeQuery>::SharedFuture>();
-    auto CMQ_res_callback = [this, CMQ_request, CMQ_shared_future_ptr, &plan_task_status](rclcpp::Client<robot_msgs::srv::CtrlModeQuery>::SharedFuture future)
+    auto CMQ_future = CtrlModeQuery_client->async_send_request(CMQ_request);
+    if (CMQ_future.wait_for(milliseconds(100)) == std::future_status::ready)
     {
-        *CMQ_shared_future_ptr = future;
-        auto response = future.get();
-        if (response->runtime_ctrl_mode)
+        auto CMQ_response = CMQ_future.get();
+        if (CMQ_response->runtime_ctrl_mode)
         {
             plan_task_status = "e_waiting";
         }
-    };
-    
-    auto CMQ_future = CtrlModeQuery_client->async_send_request(CMQ_request, CMQ_res_callback);
-    *CMQ_shared_future_ptr = CMQ_future.future;
-    
-    auto CMQ_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-        [this, CMQ_shared_future_ptr, CMQ_request, single_cron_plan_task]()
-        {
-            if (CMQ_shared_future_ptr->valid() &&
-                CMQ_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-            {
-                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] CronPlanTaskStart(): Failed to call CtrlModeQuery_service (" << single_cron_plan_task.id_task_plan << ")!");
-                return;
-            }
-        });
+    }
+    else
+    {
+        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] CronPlanTaskStart(): Failed to call CtrlModeQuery_service (" << single_cron_plan_task.id_task_plan << ")!");
+        return;
+    }
 
     std::string TaskInstanceIndexFileDir = TaskFilesDir + "task_instance_files/TaskInstanceIndex.json";
     std::ifstream TaskInstanceIndexFileRead(TaskInstanceIndexFileDir.c_str());
@@ -4991,14 +4753,20 @@ bool Task_Execute::TaskStartExecuteCheckRobotHome()
     if (device_type == "e_robot_crawler")
     {
         robot_msgs::srv::ArmCtrlSrv::Request::SharedPtr arm_request;
+        robot_msgs::srv::LiftCtrlSrv::Request::SharedPtr lift_request;
+        
         arm_request->pos_key = "poshome";
-
-        auto arm_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-        auto arm_res_callback = [this, arm_request, arm_shared_future_ptr, &arm_home_flag, &arm_home_flag_local](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+        auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+        if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
         {
-            *arm_shared_future_ptr = future;
-            auto response = future.get();
-            if (!response->execute_success)
+            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] TaskStartExecuteCheckRobotHome(): Arm target pos(" << arm_request->pos_key << ") is out of range!");
+            arm_home_flag = false;
+            arm_home_flag_local = false;
+        }
+        else
+        {
+            auto arm_response = arm_future.get();
+            if (!arm_response->execute_success)
             {
                 RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] TaskStartExecuteCheckRobotHome(): Arm failed to move to target pos(" << arm_request->pos_key << ")!");
                 arm_home_flag = false;
@@ -5007,99 +4775,63 @@ bool Task_Execute::TaskStartExecuteCheckRobotHome()
             else
             {
                 RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] TaskStartExecuteCheckRobotHome(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
-                
-                // 机械臂成功后调用升降服务
-                robot_msgs::srv::LiftCtrlSrv::Request::SharedPtr lift_request;
-                lift_request->position = 0.0;
-                
-                auto lift_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::LiftCtrlSrv>::SharedFuture>();
-                auto lift_res_callback = [this, lift_request, &arm_home_flag, &arm_home_flag_local](rclcpp::Client<robot_msgs::srv::LiftCtrlSrv>::SharedFuture future)
-                {
-                    auto response = future.get();
-                    if (!response->execute_success)
-                    {
-                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] TaskStartExecuteCheckRobotHome(): Lift failed to move to target pos(" << lift_request->position << ")!");
-                        arm_home_flag = false;
-                        arm_home_flag_local = false;
-                    }
-                    else
-                    {
-                        RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] TaskStartExecuteCheckRobotHome(): Lift successfully move to target pos: " << lift_request->position << "!");
-                    }
-                };
-                
-                auto lift_future = LiftCtrlSrv_client->async_send_request(lift_request, lift_res_callback);
-                *lift_shared_future_ptr = lift_future.future;
-                
-                auto lift_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                    [this, lift_shared_future_ptr, &arm_home_flag, &arm_home_flag_local]()
-                    {
-                        if (lift_shared_future_ptr->valid() &&
-                            lift_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                        {
-                            RCLCPP_ERROR(this->get_logger(), "LiftCtrlSrv call timeout!");
-                            arm_home_flag = false;
-                            arm_home_flag_local = false;
-                        }
-                    });
             }
-        };
-        
-        auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback);
-        *arm_shared_future_ptr = arm_future.future;
-        
-        auto arm_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-            [this, arm_shared_future_ptr, &arm_home_flag, &arm_home_flag_local]()
-            {
-                if (arm_shared_future_ptr->valid() &&
-                    arm_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
-                {
-                    RCLCPP_ERROR(this->get_logger(), "ArmCtrlSrv call timeout!");
-                    arm_home_flag = false;
-                    arm_home_flag_local = false;
-                }
-            });
-    }
-    else if (device_type == "e_robot_track" || device_type == "e_robot_crawler")
-    {
-        robot_msgs::srv::ArmCtrlSrv::Request::SharedPtr arm_request;
-        arm_request->pos_key = "poshome";
+        }
 
-        auto arm_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture>();
-        auto arm_res_callback = [this, arm_request, arm_shared_future_ptr, &arm_home_flag_local](rclcpp::Client<robot_msgs::srv::ArmCtrlSrv>::SharedFuture future)
+        if (arm_home_flag)
         {
-            *arm_shared_future_ptr = future;
-            auto response = future.get();
-            if (!response->execute_success)
+            lift_request->position = 0.0;
+            auto lift_future = LiftCtrlSrv_client->async_send_request(lift_request);
+            if (lift_future.wait_for(milliseconds(100)) != std::future_status::ready)
             {
-                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] TaskStartExecuteCheckRobotHome(): Arm failed to move to target pos(" << arm_request->pos_key << ")!");
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] TaskStartExecuteCheckRobotHome(): Lift target pos(" << lift_request->position << ") is out of range!");
+                arm_home_flag = false;
                 arm_home_flag_local = false;
             }
             else
             {
-                RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] TaskStartExecuteCheckRobotHome(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
-            }
-        };
-        
-        auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request, arm_res_callback);
-        *arm_shared_future_ptr = arm_future.future;
-        
-        auto arm_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-            [this, arm_shared_future_ptr, &arm_home_flag_local]()
-            {
-                if (arm_shared_future_ptr->valid() &&
-                    arm_shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout)
+                auto lift_response = lift_future.get();
+                if (!lift_response->execute_success)
                 {
-                    RCLCPP_ERROR(this->get_logger(), "ArmCtrlSrv call timeout!");
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] TaskStartExecuteCheckRobotHome(): Lift failed to move to target pos(" << lift_request->position << ")!");
+                    arm_home_flag = false;
                     arm_home_flag_local = false;
                 }
-            });
+                else
+                {
+                    RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] TaskStartExecuteCheckRobotHome(): Lift successfully move to target pos: " << lift_request->position << "!");
+                }
+            }
+        }
     }
-
-    auto start_time = std::chrono::steady_clock::now();
-    while (arm_home_flag_local && std::chrono::steady_clock::now() - start_time < std::chrono::seconds(30))
+    else if (device_type == "e_robot_track" || device_type == "e_robot_quadrupedal")
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        robot_msgs::srv::ArmCtrlSrv::Request::SharedPtr arm_request;
+        arm_request->pos_key = "poshome";
+        if (arm_home_flag)
+        {
+            auto arm_future = ArmCtrlSrv_client->async_send_request(arm_request);
+            if (arm_future.wait_for(milliseconds(100)) != std::future_status::ready)
+            {
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] TaskStartExecuteCheckRobotHome(): Arm target pos(" << arm_request->pos_key << ") is out of range!");
+                arm_home_flag = false;
+                arm_home_flag_local = false;
+            }
+            else
+            {
+                auto arm_response = arm_future.get();
+                if (!arm_response->execute_success)
+                {
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] TaskStartExecuteCheckRobotHome(): Arm failed to move to target pos(" << arm_request->pos_key << ")!");
+                    arm_home_flag = false;
+                    arm_home_flag_local = false;
+                }
+                else
+                {
+                    RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] TaskStartExecuteCheckRobotHome(): Arm successfully move to target pos: " << arm_request->pos_key << "!");
+                }
+            }
+        }
     }
 
     return arm_home_flag_local;

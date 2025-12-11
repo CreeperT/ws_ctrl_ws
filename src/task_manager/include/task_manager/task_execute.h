@@ -87,7 +87,7 @@ typedef struct
 class Task_Execute : public rclcpp::Node
 {
 public:
-    Task_Execute(const std::string id_device_, const std::string device_type_, const std::string devel_mode_, const std::string TrackArmMode_,
+    Task_Execute(const char* node_name, const std::string id_device_, const std::string device_type_, const std::string devel_mode_, const std::string TrackArmMode_,
                  const uint16_t ImgDataCollectWaitTime_, const uint16_t TaskStartOrFinishResponseDuration_, const uint16_t WiperWorkDuration_);
 
     // 初始化
@@ -96,8 +96,6 @@ public:
     void NodePublisherInit();
     void NodeServiceClientInit();
     void NodeServiceServerInit();
-
-    void NodeSpinnerStartup();
 
     std::string generateRandomUUID();
 
@@ -154,12 +152,6 @@ public:
         return time_buf;
     }
 
-    void joinSpinnerThread()
-    {
-        if (spinner_thread_.joinable())
-            spinner_thread_.join();
-    }
-
 public:
     // 客户端
     rclcpp::Client<robot_msgs::srv::MotorCtrltoPosSrv>::SharedPtr MotorCtrltoPosSrv_client;
@@ -194,8 +186,7 @@ public:
 
     //回调组
     rclcpp::CallbackGroup::SharedPtr server_callback_group_;
-
-    std::thread spinner_thread_;
+    rclcpp::CallbackGroup::SharedPtr client_callback_group_;
 
     // 参数
     std::vector<task_execute_info> task_execute_infos;

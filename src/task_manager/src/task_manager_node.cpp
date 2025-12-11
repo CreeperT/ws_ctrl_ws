@@ -9,8 +9,9 @@ int main(int argc, char** argv)
     // 使用 shared_ptr 创建节点实例，以符合 ROS2 规范
     auto task_manager_client = std::make_shared<Task_Manager>("task_manager_node");
     task_manager_client->DeviceParamInit();
-    auto task_file_manager = std::make_shared<Task_File_Manager>(task_manager_client->id_device, task_manager_client->devel_mode);
-    auto task_execute = std::make_shared<Task_Execute>(task_manager_client->id_device, task_manager_client->device_type, 
+    auto task_file_manager = std::make_shared<Task_File_Manager>("task_file_manager", task_manager_client->id_device, task_manager_client->devel_mode);
+    auto task_execute = std::make_shared<Task_Execute>("task_execute",
+                                                       task_manager_client->id_device, task_manager_client->device_type, 
                                                        task_manager_client->devel_mode, task_manager_client->TrackArmMode, 
                                                        task_manager_client->ImgDataCollectWaitTime, 
                                                        task_manager_client->TaskStartOrFinishResponseDuration, 
@@ -18,7 +19,7 @@ int main(int argc, char** argv)
     
 
     // 调用 NodeSpinnerStartup()，保持原逻辑
-    rclcpp::executors::MultiThreadedExecutor executor;
+    rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 15);
 
     executor.add_node(task_manager_client);
     executor.add_node(task_file_manager);

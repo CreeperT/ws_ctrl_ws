@@ -27,7 +27,6 @@ public:
 
     void NodePublisherInit(); // 发布者初始化
     void NodeSubscriberInit(); // 订阅者初始化
-    void NodeSpinnerStartup(); // 节点启动
 
     void WSsendCallback(const std_msgs::msg::String::ConstSharedPtr& msg); // 向ws服务端发送消息的回调函数
 

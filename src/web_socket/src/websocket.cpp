@@ -75,12 +75,6 @@ void WebSocket_Client::NodeSubscriberInit()
         "WSmsgs_send_topic", 10, std::bind(&WebSocket_Client::WSsendCallback, this, std::placeholders::_1));
 }
 
-void WebSocket_Client::NodeSpinnerStartup()
-{
-    executor_.add_node(shared_from_this());
-    spinner_thread_ = std::thread([this]() { executor_.spin(); });
-}
-
 void WebSocket_Client::WSsendCallback(const std_msgs::msg::String::ConstSharedPtr& msg)
 {
     if (ws_.is_open())

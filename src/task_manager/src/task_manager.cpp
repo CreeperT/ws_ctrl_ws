@@ -8,9 +8,6 @@ Task_Manager::Task_Manager(const char* node_name) : Node(node_name)
     {
         NodePublisherInit();
         NodeServiceServerInit();
-
-        // pTaskFileManager = std::make_shared<Task_File_Manager>(id_device, devel_mode);
-        // pTaskExecute = std::make_shared<Task_Execute>(id_device, device_type, devel_mode, TrackArmMode, ImgDataCollectWaitTime, TaskStartOrFinishResponseDuration, WiperWorkDuration);
     }
 }
 
@@ -114,13 +111,6 @@ void Task_Manager::NodeServiceServerInit()
 
     InspectTaskInstanceQuery_server = this->create_service<robot_msgs::srv::InspectTaskInstanceQuery>(
         "InspectTaskInstanceQuery_service", std::bind(&Task_Manager::InspectTaskInstanceQueryHandle, this, _1, _2));
-}
-
-void Task_Manager::NodeSpinnerStartup()
-{
-    rclcpp::executors::MultiThreadedExecutor executor;
-    executor.add_node(this->get_node_base_interface());
-    executor.spin();
 }
 
 /********************************************************服务中断函数*************************************************************/

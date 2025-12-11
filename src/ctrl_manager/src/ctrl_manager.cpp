@@ -3,6 +3,8 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
 using std::placeholders::_4;
+using std::chrono::seconds;
+using std::chrono::milliseconds;
 
 /***********************************************初始化相关***********************************************/
 
@@ -15,15 +17,15 @@ Ctrl_Manager::Ctrl_Manager(const char* node_name) : rclcpp::Node(node_name)
         NodeServiceServerInit();
         NodeServiceClientInit();
 
-        HeartbeatBag_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-        BatteryPercentManage_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-        ManualMode2TaskModeAutoCheck_callback_group_  = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+        HeartbeatBag_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+        BatteryPercentManage_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+        ManualMode2TaskModeAutoCheck_cb_group_  = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
-        HeartbeatBag_timer = this->create_wall_timer(std::chrono::seconds(60), std::bind(&Ctrl_Manager::RobotHeartbeatBagPub, this), HeartbeatBag_callback_group_);
+        HeartbeatBag_timer = this->create_wall_timer(seconds(60), std::bind(&Ctrl_Manager::RobotHeartbeatBagPub, this), HeartbeatBag_cb_group_);
 
-        BatteryPercentManage_timer = this->create_wall_timer(std::chrono::seconds(60), std::bind(&Ctrl_Manager::BatteryPercentManage, this), BatteryPercentManage_callback_group_);
+        BatteryPercentManage_timer = this->create_wall_timer(seconds(60), std::bind(&Ctrl_Manager::BatteryPercentManage, this), BatteryPercentManage_cb_group_);
 
-        ManualMode2TaskModeAutoCheck_timer = this->create_wall_timer(std::chrono::seconds(60), std::bind(&Ctrl_Manager::ManualMode2TaskModeAutoCheck, this), ManualMode2TaskModeAutoCheck_callback_group_);
+        ManualMode2TaskModeAutoCheck_timer = this->create_wall_timer(seconds(60), std::bind(&Ctrl_Manager::ManualMode2TaskModeAutoCheck, this), ManualMode2TaskModeAutoCheck_cb_group_);
     }
 }
 
@@ -140,12 +142,16 @@ void Ctrl_Manager::NodeSubscriberInit()
 
 void Ctrl_Manager::NodeServiceServerInit()
 {   
+    server_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
     ChangeCtrlModeCmd_server = this->create_service<robot_msgs::srv::ChangeCtrlModeCmd>(
-        "ChangeCtrlModeCmd_service", std::bind(&Ctrl_Manager::ChangeCtrlModeCmdHandle, this, _1, _2)
+        "ChangeCtrlModeCmd_service", std::bind(&Ctrl_Manager::ChangeCtrlModeCmdHandle, this, _1, _2),
+        rmw_qos_profile_services_default, server_cb_group_
     );
 
     CtrlModeQuery_server = this->create_service<robot_msgs::srv::CtrlModeQuery>(
-        "CtrlModeQuery_service", std::bind(&Ctrl_Manager::CtrlModeQueryHandle, this, _1, _2)
+        "CtrlModeQuery_service", std::bind(&Ctrl_Manager::CtrlModeQueryHandle, this, _1, _2),
+        rmw_qos_profile_services_default, server_cb_group_
     );
 
     RCLCPP_INFO(this->get_logger(), "Service server init finished!");
@@ -153,29 +159,23 @@ void Ctrl_Manager::NodeServiceServerInit()
 
 void Ctrl_Manager::NodeServiceClientInit()
 {    
-    BatteryChargeNav_client = this->create_client<robot_msgs::srv::BatteryChargeNav>("BatteryChargeNav_service");
+    client_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    
+    BatteryChargeNav_client = this->create_client<robot_msgs::srv::BatteryChargeNav>("BatteryChargeNav_service", rmw_qos_profile_services_default, client_cb_group_);
 
-    TaskExecuteStatusQuery_client = this->create_client<robot_msgs::srv::TaskExecuteStatusQuery>("TaskExecuteStatusQuery_service");
+    TaskExecuteStatusQuery_client = this->create_client<robot_msgs::srv::TaskExecuteStatusQuery>("TaskExecuteStatusQuery_service", rmw_qos_profile_services_default, client_cb_group_);
 
-    BatteryChargeExecuteProgram_client = this->create_client<robot_msgs::srv::BatteryChargeExecuteProgram>("BatteryChargeExecuteProgram_service");
+    BatteryChargeExecuteProgram_client = this->create_client<robot_msgs::srv::BatteryChargeExecuteProgram>("BatteryChargeExecuteProgram_service", rmw_qos_profile_services_default, client_cb_group_);
 
-    BatteryChargePauseTask_client = this->create_client<robot_msgs::srv::BatteryChargePauseTask>("BatteryChargePauseTask_service");
+    BatteryChargePauseTask_client = this->create_client<robot_msgs::srv::BatteryChargePauseTask>("BatteryChargePauseTask_service", rmw_qos_profile_services_default, client_cb_group_);
 
-    BatteryChargeStartTask_client = this->create_client<robot_msgs::srv::BatteryChargeStartTask>("BatteryChargeStartTask_service");
+    BatteryChargeStartTask_client = this->create_client<robot_msgs::srv::BatteryChargeStartTask>("BatteryChargeStartTask_service", rmw_qos_profile_services_default, client_cb_group_);
 
-    ModeChangePauseTask_client = this->create_client<robot_msgs::srv::ModeChangePauseTask>("ModeChangePauseTask_service");
+    ModeChangePauseTask_client = this->create_client<robot_msgs::srv::ModeChangePauseTask>("ModeChangePauseTask_service", rmw_qos_profile_services_default, client_cb_group_);
 
-    ModeChangeStartTask_client = this->create_client<robot_msgs::srv::ModeChangeStartTask>("ModeChangeStartTask_service");
+    ModeChangeStartTask_client = this->create_client<robot_msgs::srv::ModeChangeStartTask>("ModeChangeStartTask_service", rmw_qos_profile_services_default, client_cb_group_);
 
     RCLCPP_INFO(this->get_logger(), "Service client init finished!");
-}
-
-void Ctrl_Manager::NodeSpinnerStartup()
-{
-    // spinner_thread_ = std::thread([this]() { rclcpp::spin(this->get_node_base_interface()); });
-    rclcpp::executors::MultiThreadedExecutor executor;
-    executor.add_node(this->get_node_base_interface());
-    executor.spin();
 }
 
 /***********************************************机器人控制相关***********************************************/
@@ -183,11 +183,6 @@ void Ctrl_Manager::NodeSpinnerStartup()
 bool Ctrl_Manager::ChangeCtrlModeCmdHandle(const robot_msgs::srv::ChangeCtrlModeCmd::Request::SharedPtr req,
                                                     robot_msgs::srv::ChangeCtrlModeCmd::Response::SharedPtr res)
 {
-    bool flag = false;
-
-    auto shared_res = res;
-    auto res_flag = false;
-
     RCLCPP_INFO(this->get_logger(), "ChangeCtrlModeCmdHandle: ctrl_mode: %d, req->ctrl_mode: %d", ctrl_mode, req->ctrl_mode);
     if (req->ctrl_mode == ctrl_mode)
     {
@@ -207,7 +202,7 @@ bool Ctrl_Manager::ChangeCtrlModeCmdHandle(const robot_msgs::srv::ChangeCtrlMode
         if (ctrl_mode == 0)
         {
             RCLCPP_INFO(this->get_logger(), "ctrl_mode is 0");
-            auto task_execute_local = std::make_shared<std::atomic<bool>>(false);
+            bool task_execute_local = false;
             auto TESQ_request = std::make_shared<robot_msgs::srv::TaskExecuteStatusQuery::Request>();
 
             while (!TaskExecuteStatusQuery_client->wait_for_service(std::chrono::seconds(1)))
@@ -220,41 +215,29 @@ bool Ctrl_Manager::ChangeCtrlModeCmdHandle(const robot_msgs::srv::ChangeCtrlMode
                 RCLCPP_INFO(this->get_logger(), "TaskExecuteStatusQuery Service not available, waiting again...");
             }
 
-            auto TESQ_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::TaskExecuteStatusQuery>::SharedFuture>();
-            
-
-            auto TESQ_res_callback = [this, &flag, TESQ_shared_future_ptr, &task_execute_local, req, &res_flag](rclcpp::Client<robot_msgs::srv::TaskExecuteStatusQuery>::SharedFuture future)
+            auto TESQ_future = TaskExecuteStatusQuery_client->async_send_request(TESQ_request);
+            if (TESQ_future.wait_for(milliseconds(100)) == std::future_status::ready)
             {
                 RCLCPP_INFO(this->get_logger(), "get in TESQ_callback");
-                *TESQ_shared_future_ptr = future;
-                auto response = future.get();
+                auto response = TESQ_future.get();
                 if (response->task_execute)
                 {
-                    *task_execute_local = true;
-                    RCLCPP_INFO(this->get_logger(), "TESQ response is true, res_flag is %d", res_flag);
+                    task_execute_local = true;
                 }
                 else
                 {
-                    res_flag = true;
+                    res->execute_success = true;
                     ctrl_mode = req->ctrl_mode;
                     operate_manual_last_time = std::time(nullptr);
-                    flag = true;
+                    return true;
                 }
-            };
-
-            auto TESQ_future = TaskExecuteStatusQuery_client->async_send_request(TESQ_request, TESQ_res_callback);
-            *TESQ_shared_future_ptr = TESQ_future.future;
-            auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                [this, &flag, TESQ_shared_future_ptr, &res_flag]()
-                                                {
-                                                    if (TESQ_shared_future_ptr->valid() &&
-                                                        TESQ_shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                    {
-                                                        RCLCPP_WARN_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ChangerCtrlModeCmdHandle(): TaskExecuteStatusQuery srv return is false.");
-                                                        res_flag = false;
-                                                        flag = true;
-                                                    }
-                                                });
+            }
+            else
+            {
+                RCLCPP_WARN_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ChangerCtrlModeCmdHandle(): TaskExecuteStatusQuery srv return is false.");
+                res->execute_success = false;
+                return true;
+            }
 
             if (task_execute_local)
             {
@@ -269,49 +252,29 @@ bool Ctrl_Manager::ChangeCtrlModeCmdHandle(const robot_msgs::srv::ChangeCtrlMode
                     RCLCPP_INFO(this->get_logger(), "ModeChangePauseTask Service not available, waiting again...");
                 }
 
-                auto MCPT_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ModeChangePauseTask>::SharedFuture>();
-
-                auto MCPT_res_callback = [this, &flag, MCPT_shared_future_ptr, req, &res_flag](rclcpp::Client<robot_msgs::srv::ModeChangePauseTask>::SharedFuture future)
+                auto MCPT_future = ModeChangePauseTask_client->async_send_request(MCPT_request);
+                if (MCPT_future.wait_for(milliseconds(100)) == std::future_status::ready)
                 {
                     RCLCPP_INFO(this->get_logger(), "get in MCPT_callback");
-                    *MCPT_shared_future_ptr = future;
-                    auto response = future.get();
+                    auto response = MCPT_future.get();
                     if (response->execute_success)
                     {
-                        res_flag = true;
+                        res->execute_success = true;
                         ctrl_mode = req->ctrl_mode;
                         operate_manual_last_time = std::time(nullptr);
-                        flag = true;
-                        RCLCPP_INFO(this->get_logger(), "MCPT response is true, res_flag is %d", res_flag);
+                        return true;
                     }
                     else
                     {
                         RCLCPP_WARN_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ChangerCtrlModeCmdHandle(): ModeChangePauseTask execute failed(res.exe_succ is false).");
-                        res_flag = false;
-                        flag = true;
-                    }
-                };
-
-                auto MCPT_future = ModeChangePauseTask_client->async_send_request(MCPT_request, MCPT_res_callback);
-                *MCPT_shared_future_ptr = MCPT_future.future;   
-                auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                    [this, MCPT_shared_future_ptr, &res_flag]()
-                                                    {
-                                                        if (MCPT_shared_future_ptr->valid() &&
-                                                            MCPT_shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                        {
-                                                            RCLCPP_WARN_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ChangerCtrlModeCmdHandle(): ModeChangePauseTask execute failed(srv return is false).");
-                                                            res_flag = false;
-                                                        }
-                                                    });
-
-                if (flag)
-                {
-                    if (res_flag)
-                        res->execute_success = true;
-                    else
                         res->execute_success = false;
-                    RCLCPP_INFO(this->get_logger(), "res->execute_success is %d", res->execute_success);
+                        return true;
+                    }
+                }
+                else
+                {
+                    RCLCPP_WARN_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ChangerCtrlModeCmdHandle(): ModeChangePauseTask execute failed(srv return is false).");
+                    res->execute_success = false;
                     return true;
                 }
             }
@@ -355,54 +318,32 @@ bool Ctrl_Manager::ChangeCtrlModeCmdHandle(const robot_msgs::srv::ChangeCtrlMode
                 RCLCPP_INFO(this->get_logger(), "ModeChangeStartTask Service not available, waiting again...");
             }
 
-            auto MCST_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ModeChangeStartTask>::SharedFuture>();
-
-            auto MCST_res_callback = [this, &flag, MCST_shared_future_ptr, req, &res](rclcpp::Client<robot_msgs::srv::ModeChangeStartTask>::SharedFuture future)
+            auto MCST_future = ModeChangeStartTask_client->async_send_request(MCST_request);
+            if (MCST_future.wait_for(std::chrono::seconds(1)) == std::future_status::ready)
             {
-                RCLCPP_INFO(this->get_logger(), "get in MCST_callback");
-                *MCST_shared_future_ptr = future;
-                auto response = future.get();
-                if (response->execute_success)
+                auto MCST_response = MCST_future.get();
+                if (MCST_response->execute_success)
                 {
                     res->execute_success = true;
                     ctrl_mode = req->ctrl_mode;
-                    flag = true;
                     RCLCPP_INFO(this->get_logger(), "MCST response is true, res_flag is %d", res->execute_success);
+                    return true;
+                    
                 }
                 else
                 {
                     RCLCPP_WARN_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ChangerCtrlModeCmdHandle(): ModeChangeStartTask execute failed(res.exe_succ is false).");
                     res->execute_success = false;
-                    flag = true;
+                    return true;
                 }
-            };
-
-            auto MCST_future = ModeChangeStartTask_client->async_send_request(MCST_request, MCST_res_callback);
-            *MCST_shared_future_ptr = MCST_future.future;
-
-            auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                [this, &flag, MCST_shared_future_ptr, &res_flag, &res]()
-                                                {
-                                                    if (MCST_shared_future_ptr->valid() &&
-                                                        MCST_shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                    {
-                                                        RCLCPP_WARN_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ChangerCtrlModeCmdHandle(): ModeChangeStartTask execute failed(srv return is false).");
-                                                        res_flag = false;
-                                                        flag = true;
-                                                    }
-                                                });
-            RCLCPP_INFO(this->get_logger(), "res_flag is %d", res_flag);
-
-            if (flag)
+                
+            }
+            else
             {
-                if (res_flag)
-                    res->execute_success = true;
-                else
-                    res->execute_success = false;
-                RCLCPP_INFO(this->get_logger(), "res->execute_success is %d", res->execute_success);
+                RCLCPP_WARN_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ChangerCtrlModeCmdHandle(): ModeChangeStartTask execute failed(srv return is false).");
+                res->execute_success = false;
                 return true;
             }
-            
         }
         else if (ctrl_mode == 2)
         {
@@ -412,12 +353,8 @@ bool Ctrl_Manager::ChangeCtrlModeCmdHandle(const robot_msgs::srv::ChangeCtrlMode
             return true;
         }
     }
-    RCLCPP_INFO(this->get_logger(), "right here");
-    sleep(1);
-    RCLCPP_INFO(this->get_logger(), "return!");
     return true;
 }
-
 
 bool Ctrl_Manager::CtrlModeQueryHandle(const robot_msgs::srv::CtrlModeQuery::Request::SharedPtr req,
                                                 robot_msgs::srv::CtrlModeQuery::Response::SharedPtr res)
@@ -502,7 +439,7 @@ void Ctrl_Manager::RobotGoHomeBatteryCharge()
         }
 
         auto BCN_future = BatteryChargeNav_client->async_send_request(BCN_request);
-        if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), BCN_future) == rclcpp::FutureReturnCode::SUCCESS)
+        if (BCN_future.wait_for(milliseconds(100)) == std::future_status::ready)
         {   
             auto BCN_response = BCN_future.get();
             if (!BCN_response->execute_success)
@@ -522,7 +459,7 @@ void Ctrl_Manager::RobotGoHomeBatteryCharge()
     robot_msgs::srv::BatteryChargeExecuteProgram::Request::SharedPtr BCEP_request;
     auto BCEP_future = BatteryChargeExecuteProgram_client->async_send_request(BCEP_request);
 
-    if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), BCEP_future) == rclcpp::FutureReturnCode::SUCCESS)
+    if (BCEP_future.wait_for(milliseconds(100)) == std::future_status::ready)
     {
         auto BCEP_response = BCEP_future.get();
         if (BCEP_response->execute_success)
@@ -614,7 +551,7 @@ void Ctrl_Manager::TaskFinishAndExecuteBatteryChargeCallback(const std_msgs::msg
             }
 
             auto BCN_future = BatteryChargeNav_client->async_send_request(BCN_request);
-            if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), BCN_future) == rclcpp::FutureReturnCode::SUCCESS)
+            if (BCN_future.wait_for(milliseconds(100)) == std::future_status::ready)
             {   
                 auto BCN_response = BCN_future.get();
                 if (!BCN_response->execute_success)
@@ -634,7 +571,7 @@ void Ctrl_Manager::TaskFinishAndExecuteBatteryChargeCallback(const std_msgs::msg
         robot_msgs::srv::BatteryChargeExecuteProgram::Request::SharedPtr BCEP_request;
         auto BCEP_future = BatteryChargeExecuteProgram_client->async_send_request(BCEP_request);
 
-        if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), BCEP_future) == rclcpp::FutureReturnCode::SUCCESS)
+        if (BCEP_future.wait_for(milliseconds(100)) == std::future_status::ready)
         {
             auto BCEP_response = BCEP_future.get();
             if (BCEP_response->execute_success)
@@ -690,12 +627,11 @@ void Ctrl_Manager::BatteryPercentManage()
             }
             RCLCPP_INFO(this->get_logger(), "TaskExecuteStatusQuery Service not available, waiting again...");
         }
-        auto TESQ_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::TaskExecuteStatusQuery>::SharedFuture>();
 
-        auto TESQ_res_callback = [this, TESQ_shared_future_ptr](rclcpp::Client<robot_msgs::srv::TaskExecuteStatusQuery>::SharedFuture future)
+        auto TESQ_future = TaskExecuteStatusQuery_client->async_send_request(TESQ_request);
+        if (TESQ_future.wait_for(milliseconds(100)) == std::future_status::ready)
         {
-            auto TESQ_response = future.get();
-            *TESQ_shared_future_ptr = future;
+            auto TESQ_response = TESQ_future.get();
             if (TESQ_response->task_execute)
             {
                 auto BCPT_request = std::make_shared<robot_msgs::srv::BatteryChargePauseTask::Request>();
@@ -708,34 +644,27 @@ void Ctrl_Manager::BatteryPercentManage()
                     }
                     RCLCPP_INFO(this->get_logger(), "BatteryChargePauseTask Service not available, waiting again...");
                 }
-                auto BCPT_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::BatteryChargePauseTask>::SharedFuture>();
-                auto BCPT_res_callback = [this, BCPT_shared_future_ptr](rclcpp::Client<robot_msgs::srv::BatteryChargePauseTask>::SharedFuture future)
+    
+                auto BCPT_future = BatteryChargePauseTask_client->async_send_request(BCPT_request);
+                if (BCPT_future.wait_for(milliseconds(100)) == std::future_status::ready)
                 {
-                    auto BCPT_response = future.get();
-                    *BCPT_shared_future_ptr = future;
+                    auto BCPT_response = BCPT_future.get();
                     if (!BCPT_response->execute_success)
                     {
                         RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): BatteryChargePauseTask execute failed.");
+                        return;
                     }
                     else
                     {
                         RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): BatteryChargePauseTask execute successfully.");
                         finish_battery_charge_and_execute_task = false;
                     }
-                };
-
-                auto BCPT_future = BatteryChargePauseTask_client->async_send_request(BCPT_request, BCPT_res_callback);
-                *BCPT_shared_future_ptr = BCPT_future.future;
-
-                auto BCPT_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                        [this, TESQ_shared_future_ptr]()
-                                                        {
-                                                            if (TESQ_shared_future_ptr->valid() &&
-                                                                TESQ_shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                            {
-                                                                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): BatteryChargePauseTask_client call return false.");
-                                                            }
-                                                        });
+                }
+                else
+                {
+                    RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): BatteryChargePauseTask_client call return false.");
+                    return;
+                }
             }
             else
             {
@@ -748,21 +677,11 @@ void Ctrl_Manager::BatteryPercentManage()
                     QuadrupedalMotorStopCtrl_pub->publish(QuadrupedalMotorStopCtrlMsg);
                 }
             }
-        };
-
-        auto TESQ_future = TaskExecuteStatusQuery_client->async_send_request(TESQ_request, TESQ_res_callback);
-        *TESQ_shared_future_ptr = TESQ_future.future;
-
-        auto TESQ_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                [this, TESQ_shared_future_ptr]()
-                                                {
-                                                    if (TESQ_shared_future_ptr->valid() &&
-                                                        TESQ_shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                    {
-                                                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): TaskExecuteStatusQuery_client call return false.");
-                                                    }
-                                                });
-
+        }
+        else
+        {
+            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): TaskExecuteStatusQuery_client call return false.");
+        }
         
         // 定位移动平台到充电点(四足)
         if (device_type == "e_robot_quadrupedal")
@@ -782,29 +701,22 @@ void Ctrl_Manager::BatteryPercentManage()
                 }
                 RCLCPP_INFO(this->get_logger(), "BatteryChargeNav Service not available, waiting again...");
             }
-            auto BCN_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::BatteryChargeNav>::SharedFuture>();
-            auto BCN_res_callback = [this, BCN_shared_future_ptr](rclcpp::Client<robot_msgs::srv::BatteryChargeNav>::SharedFuture future)
+
+            auto BCN_future = BatteryChargeNav_client->async_send_request(BCN_request);
+            if (BCN_future.wait_for(milliseconds(100)) == std::future_status::ready)
             {
-                auto BCN_response = future.get();
-                *BCN_shared_future_ptr = future;
+                auto BCN_response = BCN_future.get();
                 if (!BCN_response->execute_success)
                 {
                     RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): Failed to nav to battery charge target pose.");
+                    return;
                 }
-            };
-
-            auto BCN_future = BatteryChargeNav_client->async_send_request(BCN_request, BCN_res_callback);
-            *BCN_shared_future_ptr = BCN_future.future;
-            auto BCN_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                    [this, BCN_shared_future_ptr]()
-                                                    {
-                                                        if (BCN_shared_future_ptr->valid() &&
-                                                            BCN_shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                        {
-                                                            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): Nav program is wrong.");
-                                                        }
-                                                    });
-            
+            }
+            else
+            {
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): Nav program is wrong.");
+                return;
+            }   
             RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): Successfully nav to battery charge target pose.");
         }
 
@@ -818,11 +730,11 @@ void Ctrl_Manager::BatteryPercentManage()
             }
             RCLCPP_INFO(this->get_logger(), "BatteryChargeExecuteProgram Service not available, waiting again...");
         }
-        auto BCEP_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::BatteryChargeExecuteProgram>::SharedFuture>();
-        auto BCEP_res_callback = [this, BCEP_shared_future_ptr](rclcpp::Client<robot_msgs::srv::BatteryChargeExecuteProgram>::SharedFuture future)
+        
+        auto BCEP_future = BatteryChargeExecuteProgram_client->async_send_request(BCEP_request);
+        if (BCEP_future.wait_for(milliseconds(100)) == std::future_status::ready)
         {
-            auto BCEP_response = future.get();
-            *BCEP_shared_future_ptr = future;
+            auto BCEP_response = BCEP_future.get();
             if (BCEP_response->execute_success)
             {
                 RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): Successfully execute battery charge program.");
@@ -834,20 +746,12 @@ void Ctrl_Manager::BatteryPercentManage()
                 RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): Failed to execute battery charge program(res.exe_succ is false).");
                 return;
             }
-        };
-
-        auto BCEP_future = BatteryChargeExecuteProgram_client->async_send_request(BCEP_request, BCEP_res_callback);
-        *BCEP_shared_future_ptr = BCEP_future.future;
-        auto BCEP_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                [this, BCEP_shared_future_ptr]()
-                                                {
-                                                    if (BCEP_shared_future_ptr->valid() &&
-                                                        BCEP_shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                    {
-                                                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): Failed to execute battery charge program(srv call return false).");
-                                                        return;
-                                                    }
-                                                });
+        }
+        else
+        {
+            RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): Failed to execute battery charge program(srv call return false).");
+            return;
+        }
     }
 
     if (battery_percent >= battery_percent_high_threshold && battery_charge_lock)
@@ -878,11 +782,11 @@ void Ctrl_Manager::BatteryPercentManage()
                 }
                 RCLCPP_INFO(this->get_logger(), "BatteryChargeStartTask Service not available, waiting again...");
             }
-            auto BCST_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::BatteryChargeStartTask>::SharedFuture>();
-            auto BCST_res_callback = [this, BCST_shared_future_ptr](rclcpp::Client<robot_msgs::srv::BatteryChargeStartTask>::SharedFuture future)
+
+            auto BCST_future = BatteryChargeStartTask_client->async_send_request(BCST_request);
+            if (BCST_future.wait_for(milliseconds(100)) == std::future_status::ready)
             {
-                auto BCST_response = future.get();
-                *BCST_shared_future_ptr = future;
+                auto BCST_response = BCST_future.get();
                 if (BCST_response->execute_success)
                 {
                     RCLCPP_INFO_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): BatteryChargeStartTask execute Successfully.");
@@ -896,21 +800,12 @@ void Ctrl_Manager::BatteryPercentManage()
                     RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): BatteryChargeStartTask failed(res.exe_succ is false).");
                     return;
                 }
-            };
-
-            auto BCST_future = BatteryChargeStartTask_client->async_send_request(BCST_request, BCST_res_callback);
-            *BCST_shared_future_ptr = BCST_future.future;
-            auto BCST_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                     [this, BCST_shared_future_ptr]()
-                                                     {
-                                                         if (BCST_shared_future_ptr->valid() &&
-                                                             BCST_shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                         {
-                                                             RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): BatteryChargeStartTask failed(srv call return false).");
-                                                             return;
-                                                         }
-                                                     });
-
+            }
+            else
+            {
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] BatteryPercentManage(): BatteryChargeStartTask failed(srv call return false).");
+                return;     
+            }
         }
     }
 }
@@ -965,11 +860,21 @@ void Ctrl_Manager::ManualMode2TaskModeAutoCheck()
             ArmCtrlStopCmd_pub->publish(ArmCtrlStopMsg);
 
             auto MCST_request = std::make_shared<robot_msgs::srv::ModeChangeStartTask::Request>();
-            auto MCST_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ModeChangeStartTask>::SharedFuture>();
-            auto MCST_res_callback = [this, MCST_shared_future_ptr](rclcpp::Client<robot_msgs::srv::ModeChangeStartTask>::SharedFuture future)
+            
+            while (!ModeChangeStartTask_client->wait_for_service(std::chrono::seconds(1)))
             {
-                *MCST_shared_future_ptr = future;
-                auto MCST_response = future.get();
+                if (!rclcpp::ok())
+                {
+                    RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service.");
+                    return;
+                }
+                RCLCPP_INFO(this->get_logger(), "ModeChangeStartTask Service not available, waiting again...");
+            }
+
+            auto MCST_future = ModeChangeStartTask_client->async_send_request(MCST_request);
+            if (MCST_future.wait_for(milliseconds(100)) == std::future_status::ready)
+            {
+                auto MCST_response = MCST_future.get();
                 if (MCST_response->execute_success)
                 {
                     ctrl_mode = 0;
@@ -981,19 +886,12 @@ void Ctrl_Manager::ManualMode2TaskModeAutoCheck()
                     RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ManualMode2TaskModeAutoCheck(): ModeChangeStartTask execute failed(res.exe_succ is false).");
                     return;
                 }
-            };
-            auto MCST_future = ModeChangeStartTask_client->async_send_request(MCST_request, MCST_res_callback);
-            *MCST_shared_future_ptr = MCST_future.future;
-            auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                [this, MCST_shared_future_ptr]()
-                                                {
-                                                    if (MCST_shared_future_ptr->valid() &&
-                                                        MCST_shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                    {
-                                                        RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ManualMode2TaskModeAutoCheck(): ModeChangeStartTask execute failed(srv call return false).");  
-                                                        return;
-                                                    }
-                                                });
+            }
+            else
+            {
+                RCLCPP_ERROR_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ManualMode2TaskModeAutoCheck(): ModeChangeStartTask execute failed(srv call return false).");  
+                return;
+            }
         }
     }
 }

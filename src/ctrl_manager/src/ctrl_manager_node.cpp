@@ -9,9 +9,9 @@ int main(int argc, char** argv)
     setlocale(LC_CTYPE, "zh_CN.utf8");
 
     auto ws_msgs_manager_server = std::make_shared<Ctrl_Manager>("ctrl_manager_node");
-    ws_msgs_manager_server->NodeSpinnerStartup();
-
-    ws_msgs_manager_server->joinSpinnerThread();
+    rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 15);
+    executor.add_node(ws_msgs_manager_server);
+    executor.spin();
     rclcpp::shutdown();
 
     return EXIT_SUCCESS;

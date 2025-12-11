@@ -69,6 +69,9 @@ public:
     rclcpp::Client<robot_msgs::srv::TaskExecuteStatusQuery>::SharedPtr TaskExecuteStatusQuery_client;
     rclcpp::Client<robot_msgs::srv::ModeChangePauseTask>::SharedPtr ModeChangePauseTask_client;
     rclcpp::Client<robot_msgs::srv::ModeChangeStartTask>::SharedPtr ModeChangeStartTask_client;
+
+    rclcpp::CallbackGroup::SharedPtr client_cb_group;
+    rclcpp::CallbackGroup::SharedPtr server_cb_group;
     
     std::thread spinner_thread_;
 

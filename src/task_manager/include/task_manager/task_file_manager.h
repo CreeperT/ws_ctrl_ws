@@ -32,12 +32,10 @@
 class Task_File_Manager : public rclcpp::Node
 {
 public:
-    Task_File_Manager(const std::string id_device_, const std::string devel_mode_);
+    Task_File_Manager(const char* node_name, const std::string id_device_, const std::string devel_mode_);
 
     // 初始化
     void getTaskFilesDir();
-
-    void NodeSpinnerStartup();
 
     std::string generateRandomUUID();
 
@@ -64,12 +62,6 @@ public:
         char time_buf[64];
         strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
         return time_buf;
-    }
-
-    void joinSpinnerThread()
-    {
-        if (spinner_thread_.joinable())
-            spinner_thread_.join();
     }
 
 public:

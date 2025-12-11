@@ -52,7 +52,6 @@ public:
     void NodeSubscriberInit();
     void NodeServiceServerInit();
     void NodeServiceClientInit();
-    void NodeSpinnerStartup();
 
     // 心跳包
     void RobotHeartbeatBagPub();
@@ -91,12 +90,6 @@ public:
         char time_buf[64];
         strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
         return time_buf;
-    }
-
-    void joinSpinnerThread() 
-    {
-        if (spinner_thread_.joinable()) 
-            spinner_thread_.join();
     }
 
 public:
@@ -139,15 +132,12 @@ public:
     rclcpp::TimerBase::SharedPtr BatteryPercentManage_timer;
     rclcpp::TimerBase::SharedPtr ManualMode2TaskModeAutoCheck_timer;
 
-    // Spin逻辑
-    std::thread spinner_thread_;
-
     // 回调组
-    rclcpp::CallbackGroup::SharedPtr HeartbeatBag_callback_group_;
-    rclcpp::CallbackGroup::SharedPtr BatteryPercentManage_callback_group_;
-    rclcpp::CallbackGroup::SharedPtr ManualMode2TaskModeAutoCheck_callback_group_;
-    rclcpp::CallbackGroup::SharedPtr ModeChangeStartTask_callback_group_;
-    rclcpp::CallbackGroup::SharedPtr ChangeCtrlModeCmd_callback_group_;
+    rclcpp::CallbackGroup::SharedPtr HeartbeatBag_cb_group_;
+    rclcpp::CallbackGroup::SharedPtr BatteryPercentManage_cb_group_;
+    rclcpp::CallbackGroup::SharedPtr ManualMode2TaskModeAutoCheck_cb_group_;
+    rclcpp::CallbackGroup::SharedPtr client_cb_group_;
+    rclcpp::CallbackGroup::SharedPtr server_cb_group_;
 
     // 参数
     std::string device_type;

@@ -42,7 +42,6 @@ public:
     void NodePublisherInit();     // 节点话题发布初始化
     void NodeSubscriberInit();    // 节点话题订阅初始化
     void NodeServiceClientInit(); // 节点服务客户端初始化
-    void NodeSpinnerStartup();    // 节点启动
 
     // WebSocket通信
     void WSmsgsReceiveCallback(const std_msgs::msg::String::SharedPtr msg);                 // websocket消息接收订阅话题回调函数
@@ -133,12 +132,6 @@ public:
         char time_buf[64];
         strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
         return time_buf;
-    }
-
-    void joinSpinnerThread()
-    {
-        if (spinner_thread_.joinable())
-            spinner_thread_.join();
     }
 
 private:

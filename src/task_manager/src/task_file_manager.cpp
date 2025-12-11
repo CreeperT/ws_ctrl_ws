@@ -4,7 +4,7 @@ using std::placeholders::_2;
 using std::placeholders::_3;
 using std::placeholders::_4;
 
-Task_File_Manager::Task_File_Manager(const std::string id_device_, const std::string devel_mode_) : Node("task_file_manager")
+Task_File_Manager::Task_File_Manager(const char* node_name, const std::string id_device_, const std::string devel_mode_) : Node(node_name)
 {
     id_device = id_device_;
     devel_mode = devel_mode_;
@@ -77,13 +77,6 @@ std::string Task_File_Manager::generateRandomUUID()
     }
 
     return uuid.str();
-}
-
-void Task_File_Manager::NodeSpinnerStartup()
-{
-    rclcpp::executors::MultiThreadedExecutor executor;
-    executor.add_node(this->get_node_base_interface());
-    executor.spin();
 }
 
 /********************************************************任务信息*************************************************************/

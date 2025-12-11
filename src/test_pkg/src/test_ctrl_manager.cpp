@@ -94,8 +94,11 @@ void Ctrl_Manager::NodeSubscriberInit()
 
 void Ctrl_Manager::NodeServiceServerInit()
 {    
+    server_cb_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    
     ChangeCtrlModeCmd_server = this->create_service<robot_msgs::srv::ChangeCtrlModeCmd>(
-        "ChangeCtrlModeCmd_service", std::bind(&Ctrl_Manager::ChangeCtrlModeCmdHandle, this, _1, _2)
+        "ChangeCtrlModeCmd_service", std::bind(&Ctrl_Manager::ChangeCtrlModeCmdHandle, this, _1, _2),
+        rmw_qos_profile_services_default, server_cb_group
     );
 
     RCLCPP_INFO(this->get_logger(), "Service server init finished!");
@@ -103,11 +106,13 @@ void Ctrl_Manager::NodeServiceServerInit()
 
 void Ctrl_Manager::NodeServiceClientInit()
 {
-    TaskExecuteStatusQuery_client = this->create_client<robot_msgs::srv::TaskExecuteStatusQuery>("TaskExecuteStatusQuery_service");
+    client_cb_group = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    
+    TaskExecuteStatusQuery_client = this->create_client<robot_msgs::srv::TaskExecuteStatusQuery>("TaskExecuteStatusQuery_service", rmw_qos_profile_services_default, client_cb_group);
 
-    ModeChangePauseTask_client = this->create_client<robot_msgs::srv::ModeChangePauseTask>("ModeChangePauseTask_service");
+    ModeChangePauseTask_client = this->create_client<robot_msgs::srv::ModeChangePauseTask>("ModeChangePauseTask_service", rmw_qos_profile_services_default, client_cb_group);
 
-    ModeChangeStartTask_client = this->create_client<robot_msgs::srv::ModeChangeStartTask>("ModeChangeStartTask_service");
+    ModeChangeStartTask_client = this->create_client<robot_msgs::srv::ModeChangeStartTask>("ModeChangeStartTask_service", rmw_qos_profile_services_default, client_cb_group);
 
     RCLCPP_INFO(this->get_logger(), "Service client init finished!");
 }
@@ -295,19 +300,17 @@ bool Ctrl_Manager::ChangeCtrlModeCmdHandle(const robot_msgs::srv::ChangeCtrlMode
                 RCLCPP_INFO(this->get_logger(), "ModeChangeStartTask Service not available, waiting again...");
             }
 
-            auto MCST_shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ModeChangeStartTask>::SharedFuture>();
-
-            auto MCST_res_callback = [this, &flag, MCST_shared_future_ptr, req, &res](rclcpp::Client<robot_msgs::srv::ModeChangeStartTask>::SharedFuture future)
+            auto MCST_future = ModeChangeStartTask_client->async_send_request(MCST_request);
+            if (MCST_future.wait_for(std::chrono::seconds(1)) == std::future_status::ready)
             {
-                RCLCPP_INFO(this->get_logger(), "get in MCST_callback");
-                *MCST_shared_future_ptr = future;
-                auto response = future.get();
-                if (response->execute_success)
+                auto MCST_response = MCST_future.get();
+                if (MCST_response->execute_success)
                 {
                     res->execute_success = true;
                     ctrl_mode = req->ctrl_mode;
-                    flag = true;
                     RCLCPP_INFO(this->get_logger(), "MCST response is true, res_flag is %d", res->execute_success);
+                    return true;
+                    
                 }
                 else
                 {
@@ -315,22 +318,15 @@ bool Ctrl_Manager::ChangeCtrlModeCmdHandle(const robot_msgs::srv::ChangeCtrlMode
                     res->execute_success = false;
                     flag = true;
                 }
-            };
+                
+            }
+            else
+            {
+                RCLCPP_WARN_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ChangerCtrlModeCmdHandle(): ModeChangeStartTask execute failed(srv return is false).");
+                res_flag = false;
+                flag = true;
+            }
 
-            auto MCST_future = ModeChangeStartTask_client->async_send_request(MCST_request, MCST_res_callback);
-            *MCST_shared_future_ptr = MCST_future.future;
-
-            auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                [this, &flag, MCST_shared_future_ptr, &res_flag, &res]()
-                                                {
-                                                    if (MCST_shared_future_ptr->valid() &&
-                                                        MCST_shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                    {
-                                                        RCLCPP_WARN_STREAM(this->get_logger(), "[" << getCurrentTimeStr() << "] ChangerCtrlModeCmdHandle(): ModeChangeStartTask execute failed(srv return is false).");
-                                                        res_flag = false;
-                                                        flag = true;
-                                                    }
-                                                });
             RCLCPP_INFO(this->get_logger(), "res_flag is %d", res_flag);
 
             if (flag)
@@ -352,8 +348,6 @@ bool Ctrl_Manager::ChangeCtrlModeCmdHandle(const robot_msgs::srv::ChangeCtrlMode
             return true;
         }
     }
-    RCLCPP_INFO(this->get_logger(), "right here");
-    sleep(1);
-    RCLCPP_INFO(this->get_logger(), "return");
-    return true;
+
+    return true;    
 }

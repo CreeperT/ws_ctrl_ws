@@ -25,7 +25,6 @@ public:
     void NodeSubscriberInit();    // 节点话题订阅初始化
     void NodeServiceServerInit(); // 节点服务服务端初始化
     void NodeServiceClientInit(); // 节点服务客户端初始化
-    void NodeSpinnerStartup();    // 节点启动
 
     // 机器人信息查询
     bool RobotInfoQueryHandle(robot_msgs::srv::RobotInfoQuery::Request::SharedPtr req,
@@ -41,16 +40,7 @@ public:
         return time_buf;
     }
 
-    void joinSpinnerThread()
-    {
-        if (spinner_thread_.joinable())
-            spinner_thread_.join();
-    }
-
 public:
-    rclcpp::executors::MultiThreadedExecutor executor_;
-    std::thread spinner_thread_;
-
     rclcpp::Service<robot_msgs::srv::RobotInfoQuery>::SharedPtr RobotInfoQuery_server;
 
     // 机器人设备相关信息

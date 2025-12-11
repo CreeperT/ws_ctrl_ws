@@ -16,8 +16,6 @@ public:
     void NodePublisherInit();
     void NodeServiceServerInit();
 
-    void NodeSpinnerStartup();
-
     bool InspectTaskInfoListQueryHandle(robot_msgs::srv::InspectTaskInfoListQuery::Request::SharedPtr req, robot_msgs::srv::InspectTaskInfoListQuery::Response::SharedPtr res);
     bool InspectTaskInfoDetailQueryHandle(robot_msgs::srv::InspectTaskInfoDetailQuery::Request::SharedPtr req, robot_msgs::srv::InspectTaskInfoDetailQuery::Response::SharedPtr res);
     bool InspectTaskInfoConfigureCmdHandle(robot_msgs::srv::InspectTaskInfoConfigureCmd::Request::SharedPtr req, robot_msgs::srv::InspectTaskInfoConfigureCmd::Response::SharedPtr res);
@@ -39,12 +37,6 @@ public:
         char time_buf[64];
         strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &localt);
         return time_buf;
-    }
-
-    void joinSpinnerThread()
-    {
-        if (spinner_thread_.joinable())
-            spinner_thread_.join();
     }
 
 public:

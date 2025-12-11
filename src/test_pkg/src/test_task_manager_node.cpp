@@ -7,9 +7,10 @@ int main(int argc, char** argv)
     setlocale(LC_CTYPE, "zh_CN.utf8");
 
     auto test_task_manager = std::make_shared<Task_Manager>("test_task_manager_node");
-    test_task_manager->NodeSpinnerStartup();
+    rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 5);
+    executor.add_node(test_task_manager);
 
-    test_task_manager->joinSpinnerThread();
+    executor.spin();
     rclcpp::shutdown();
 
     return EXIT_SUCCESS;

@@ -86,15 +86,6 @@ void Info_Manager::NodeServiceClientInit()
 {
 }
 
-void Info_Manager::NodeSpinnerStartup()
-{
-    executor_.add_node(shared_from_this());
-    spinner_thread_ = std::thread([this]()
-                                  { executor_.spin(); });
-    spinner_thread_.join();
-    // spinner_thread_ = std::thread([this]() { rclcpp::spin(this->get_node_base_interface()); });
-}
-
 /***********************************************机器人信息查询***********************************************/
 bool Info_Manager::RobotInfoQueryHandle(robot_msgs::srv::RobotInfoQuery::Request::SharedPtr req,
                                         robot_msgs::srv::RobotInfoQuery::Response::SharedPtr res)

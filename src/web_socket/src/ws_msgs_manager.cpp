@@ -138,14 +138,6 @@ void WSmsgs_Manager::NodeServiceClientInit()
     SystemTimeSyncCmd_client = this->create_client<robot_msgs::srv::SystemTimeSyncCmd>("SystemTimeSyncCmd_service");
 }
 
-void WSmsgs_Manager::NodeSpinnerStartup()
-{
-    // spinner_thread_ = std::thread([this]() { rclcpp::spin(this->get_node_base_interface()); });
-    rclcpp::executors::MultiThreadedExecutor executor;
-    executor.add_node(this->get_node_base_interface());
-    executor.spin();
-}
-
 /***********************************************WS通信相关***********************************************/
 
 void WSmsgs_Manager::WSmsgsReceiveCallback(const std_msgs::msg::String::SharedPtr msg)
