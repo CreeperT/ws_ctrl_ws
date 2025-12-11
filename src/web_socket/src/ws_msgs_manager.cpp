@@ -1,4 +1,4 @@
-#include "ws_msg_manager.h"
+#include "ws_msgs_manager.h"
 #include <chrono>
 
 using std::placeholders::_1;
@@ -95,47 +95,51 @@ void WSmsgs_Manager::NodeSubscriberInit()
 
 void WSmsgs_Manager::NodeServiceClientInit()
 {
+    robot_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    task_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    systime_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    
     // 切换控制模式客户端
-    ChangeCtrlModeCmd_client = this->create_client<robot_msgs::srv::ChangeCtrlModeCmd>("ChangeCtrlModeCmd_service");
+    ChangeCtrlModeCmd_client = this->create_client<robot_msgs::srv::ChangeCtrlModeCmd>("ChangeCtrlModeCmd_service", rmw_qos_profile_services_default, robot_cb_group_);
 
     // 控制模式查询客户端
-    CtrlModeQuery_client = this->create_client<robot_msgs::srv::CtrlModeQuery>("CtrlModeQuery_service");
+    CtrlModeQuery_client = this->create_client<robot_msgs::srv::CtrlModeQuery>("CtrlModeQuery_service", rmw_qos_profile_services_default, robot_cb_group_);
 
     // 机器人信息查询客户端
-    RobotInfoQuery_client = this->create_client<robot_msgs::srv::RobotInfoQuery>("RobotInfoQuery_service");
+    RobotInfoQuery_client = this->create_client<robot_msgs::srv::RobotInfoQuery>("RobotInfoQuery_service", rmw_qos_profile_services_default, robot_cb_group_);
 
     // 巡检任务列表查询客户端
-    InspectTaskInfoListQuery_client = this->create_client<robot_msgs::srv::InspectTaskInfoListQuery>("InspectTaskInfoListQuery_service");
+    InspectTaskInfoListQuery_client = this->create_client<robot_msgs::srv::InspectTaskInfoListQuery>("InspectTaskInfoListQuery_service", rmw_qos_profile_services_default, task_cb_group_);
 
     // 单个巡检任务查询客户端
-    InspectTaskInfoDetailQuery_client = this->create_client<robot_msgs::srv::InspectTaskInfoDetailQuery>("InspectTaskInfoDetailQuery_service");
+    InspectTaskInfoDetailQuery_client = this->create_client<robot_msgs::srv::InspectTaskInfoDetailQuery>("InspectTaskInfoDetailQuery_service", rmw_qos_profile_services_default, task_cb_group_);
 
     // 配置单个巡检任务客户端
-    InspectTaskInfoConfigureCmd_client = this->create_client<robot_msgs::srv::InspectTaskInfoConfigureCmd>("InspectTaskInfoConfigureCmd_service");
+    InspectTaskInfoConfigureCmd_client = this->create_client<robot_msgs::srv::InspectTaskInfoConfigureCmd>("InspectTaskInfoConfigureCmd_service", rmw_qos_profile_services_default, task_cb_group_);
 
     // 删除单个巡检任务客户端
-    InspectTaskInfoDeleteCmd_client = this->create_client<robot_msgs::srv::InspectTaskInfoDeleteCmd>("InspectTaskInfoDeleteCmd_service");
+    InspectTaskInfoDeleteCmd_client = this->create_client<robot_msgs::srv::InspectTaskInfoDeleteCmd>("InspectTaskInfoDeleteCmd_service", rmw_qos_profile_services_default, task_cb_group_);
 
     // 查询巡检任务计划列表客户端
-    InspectTaskPlanListQuery_client = this->create_client<robot_msgs::srv::InspectTaskPlanListQuery>("InspectTaskPlanListQuery_service");
+    InspectTaskPlanListQuery_client = this->create_client<robot_msgs::srv::InspectTaskPlanListQuery>("InspectTaskPlanListQuery_service", rmw_qos_profile_services_default, task_cb_group_);
 
     // 添加巡检任务计划客户端
-    InspectTaskPlanAddCmd_client = this->create_client<robot_msgs::srv::InspectTaskPlanAddCmd>("InspectTaskPlanAddCmd_service");
+    InspectTaskPlanAddCmd_client = this->create_client<robot_msgs::srv::InspectTaskPlanAddCmd>("InspectTaskPlanAddCmd_service", rmw_qos_profile_services_default, task_cb_group_);
 
     // 删除巡检任务计划客户端
-    InspectTaskPlanDeleteCmd_client = this->create_client<robot_msgs::srv::InspectTaskPlanDeleteCmd>("InspectTaskPlanDeleteCmd_service");
+    InspectTaskPlanDeleteCmd_client = this->create_client<robot_msgs::srv::InspectTaskPlanDeleteCmd>("InspectTaskPlanDeleteCmd_service", rmw_qos_profile_services_default, task_cb_group_);
 
     // 巡检任务控制客户端
-    InspectTaskCtrlCmd_client = this->create_client<robot_msgs::srv::InspectTaskCtrlCmd>("InspectTaskCtrlCmd_service");
+    InspectTaskCtrlCmd_client = this->create_client<robot_msgs::srv::InspectTaskCtrlCmd>("InspectTaskCtrlCmd_service", rmw_qos_profile_services_default, task_cb_group_);
 
     // 巡检任务实例查询客户端
-    InspectTaskInstanceQuery_client = this->create_client<robot_msgs::srv::InspectTaskInstanceQuery>("InspectTaskInstanceQuery_service");
+    InspectTaskInstanceQuery_client = this->create_client<robot_msgs::srv::InspectTaskInstanceQuery>("InspectTaskInstanceQuery_service", rmw_qos_profile_services_default, task_cb_group_);
 
     // 巡检任务开始或结束响应客户端
-    TaskStartOrFinishResponse_client = this->create_client<robot_msgs::srv::TaskStartOrFinishResponse>("TaskStartOrFinishResponse_service");
+    TaskStartOrFinishResponse_client = this->create_client<robot_msgs::srv::TaskStartOrFinishResponse>("TaskStartOrFinishResponse_service", rmw_qos_profile_services_default, task_cb_group_);
 
     // 设备时间校准客户端
-    SystemTimeSyncCmd_client = this->create_client<robot_msgs::srv::SystemTimeSyncCmd>("SystemTimeSyncCmd_service");
+    SystemTimeSyncCmd_client = this->create_client<robot_msgs::srv::SystemTimeSyncCmd>("SystemTimeSyncCmd_service", rmw_qos_profile_services_default, systime_cb_group_);
 }
 
 /***********************************************WS通信相关***********************************************/
@@ -915,44 +919,34 @@ void WSmsgs_Manager::ChangeCtrlModeCmdProcess(const cJSON *json_fun, const uint8
             RCLCPP_INFO(this->get_logger(), "ChangeCtrlModeCmd Service not available, waiting again...");
         }
 
-        cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
-        if (json_fun_copy == NULL)
-        {
-            RCLCPP_ERROR(this->get_logger(), "copy is null");
-            return;
-        }
+        // cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
+        // if (json_fun_copy == NULL)
+        // {
+        //     RCLCPP_ERROR(this->get_logger(), "copy is null");
+        //     return;
+        // }
 
-        auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::ChangeCtrlModeCmd>::SharedFuture>();
-
-        auto res_callback = [this, json_fun_copy, target_ctrl_mode, shared_future_ptr](rclcpp::Client<robot_msgs::srv::ChangeCtrlModeCmd>::SharedFuture future)
+        auto future = ChangeCtrlModeCmd_client->async_send_request(request);
+        if (future.wait_for(std::chrono::milliseconds(500)) == std::future_status::ready)
         {
-            *shared_future_ptr = future;
             auto response = future.get();
             if (response->execute_success)
             {
-                ChangeCtrlModeCmdSendback(json_fun_copy, target_ctrl_mode);
+                ChangeCtrlModeCmdSendback(json_fun, target_ctrl_mode);
                 RCLCPP_INFO(this->get_logger(), "res->succuss is true");
                 return;
             }
             else
             {
-                DeviceOperationFailedProcess(json_fun_copy);
+                DeviceOperationFailedProcess(json_fun);
                 return;
             }
-        };
-
-        auto future = ChangeCtrlModeCmd_client->async_send_request(request, res_callback);
-        *shared_future_ptr = future.future;
-        auto timer = this->create_wall_timer(std::chrono::seconds(5),
-                                             [this, json_fun_copy, shared_future_ptr]()
-                                             {
-                                                 if (shared_future_ptr->valid() &&
-                                                     (shared_future_ptr->wait_for(std::chrono::seconds(5)) == std::future_status::timeout))
-                                                 {
-                                                     DeviceInternalCommunicationErrorProcess(json_fun_copy);
-                                                     return;
-                                                 }
-                                             });
+        }
+        else
+        {
+            DeviceInternalCommunicationErrorProcess(json_fun);
+            return;
+        }
     }
     else
         return;
@@ -1376,43 +1370,34 @@ void WSmsgs_Manager::InspectTaskInfoDetailQueryProcess(const cJSON *json_fun, co
         robot_msgs::srv::InspectTaskInfoDetailQuery::Request::SharedPtr request;
         request->id_task_info = value_id_task_info->valuestring;
 
-        cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
-        if (json_fun_copy == nullptr)
-        {
-            RCLCPP_ERROR(this->get_logger(), "copy is null");
-            return;
-        }
+        // cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
+        // if (json_fun_copy == nullptr)
+        // {
+        //     RCLCPP_ERROR(this->get_logger(), "copy is null");
+        //     return;
+        // }
 
-        auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::InspectTaskInfoDetailQuery>::SharedFuture>();
-        auto res_callback = [this, json_fun_copy, request, shared_future_ptr](rclcpp::Client<robot_msgs::srv::InspectTaskInfoDetailQuery>::SharedFuture future)
+        auto future = InspectTaskInfoDetailQuery_client->async_send_request(request);
+        if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready)
         {
-            *shared_future_ptr = future;
             auto response = future.get();
             if (response->task_not_exist)
             {
-                TaskNotExistProcess(json_fun_copy);
+                TaskNotExistProcess(json_fun);
                 return;
             }
             else
             {
-                InspectTaskInfoDetailQuerySendback(json_fun_copy, response, request);
+                InspectTaskInfoDetailQuerySendback(json_fun, response, request);
                 RCLCPP_INFO(this->get_logger(), "InspectTaskInfoDetailQuery successful");
                 return;
             }
-        };
-        auto future = InspectTaskInfoDetailQuery_client->async_send_request(request, res_callback);
-        *shared_future_ptr = future.future;
-
-        auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                             [this, json_fun_copy, shared_future_ptr]()
-                                             {
-                                                 if (shared_future_ptr->valid() &&
-                                                     shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                 {
-                                                     DeviceInternalCommunicationErrorProcess(json_fun_copy);
-                                                     return;
-                                                 }
-                                             });
+        }
+        else
+        {
+            DeviceInternalCommunicationErrorProcess(json_fun);
+            return;
+        }
     }
     else
     {
@@ -1513,52 +1498,42 @@ void WSmsgs_Manager::InspectTaskInfoConfigureCmdProcess(const cJSON *json_fun, c
                 request->monitor_points.push_back(data_temp.data);
             }
 
-            cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
-            if (json_fun_copy == nullptr)
-            {
-                RCLCPP_ERROR(this->get_logger(), "copy is null");
-                return;
-            }
+            // cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
+            // if (json_fun_copy == nullptr)
+            // {
+            //     RCLCPP_ERROR(this->get_logger(), "copy is null");
+            //     return;
+            // }
 
-            auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::InspectTaskInfoConfigureCmd>::SharedFuture>();
-            auto res_callback = [this, json_fun_copy, shared_future_ptr](rclcpp::Client<robot_msgs::srv::InspectTaskInfoConfigureCmd>::SharedFuture future)
+            auto future = InspectTaskInfoConfigureCmd_client->async_send_request(request);
+            if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready)
             {
-                *shared_future_ptr = future;
                 auto response = future.get();
                 if (response->task_not_exist)
                 {
-                    TaskNotExistProcess(json_fun_copy);
+                    TaskNotExistProcess(json_fun);
                     return;
                 }
                 else
                 {
                     if (response->name_used)
                     {
-                        TaskNameExistProcess(json_fun_copy);
+                        TaskNameExistProcess(json_fun);
                         return;
                     }
                     else
                     {
-                        InspectTaskInfoConfigureCmdSendback(json_fun_copy, response->id_task_info.c_str());
+                        InspectTaskInfoConfigureCmdSendback(json_fun, response->id_task_info.c_str());
                         RCLCPP_INFO(this->get_logger(), "InspectTaskInfoConfigureCmd successful");
                         return;
                     }
                 }
-            };
-
-            auto future = InspectTaskInfoConfigureCmd_client->async_send_request(request, res_callback);
-            *shared_future_ptr = future.future;
-
-            auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                 [this, json_fun_copy, shared_future_ptr]()
-                                                 {
-                                                     if (shared_future_ptr->valid() &&
-                                                         shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                     {
-                                                         DeviceInternalCommunicationErrorProcess(json_fun_copy);
-                                                         return;
-                                                     }
-                                                 });
+            }
+            else
+            {
+                DeviceInternalCommunicationErrorProcess(json_fun);
+                return;
+            }
         }
         else
         {
@@ -1630,21 +1605,20 @@ void WSmsgs_Manager::InspectTaskInfoDeleteCmdProcess(const cJSON *json_fun, cons
             return;
         }
 
-        auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::InspectTaskInfoDeleteCmd>::SharedFuture>();
-        auto res_callback = [this, json_fun_copy, shared_future_ptr](rclcpp::Client<robot_msgs::srv::InspectTaskInfoDeleteCmd>::SharedFuture future)
+        auto future = InspectTaskInfoDeleteCmd_client->async_send_request(request);
+        if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready)
         {
-            *shared_future_ptr = future;
             auto response = future.get();
             if (response->task_not_exist)
             {
-                TaskNotExistProcess(json_fun_copy);
+                TaskNotExistProcess(json_fun);
                 return;
             }
             else
             {
                 if (response->deletion_success)
                 {
-                    InspectTaskInfoDeleteCmdSendback(json_fun_copy);
+                    InspectTaskInfoDeleteCmdSendback(json_fun);
                     RCLCPP_INFO(this->get_logger(), "InspectTaskInfoDeleteCmd successful");
                     return;
                 }
@@ -1654,20 +1628,12 @@ void WSmsgs_Manager::InspectTaskInfoDeleteCmdProcess(const cJSON *json_fun, cons
                     return;
                 }
             }
-        };
-        auto future = InspectTaskInfoDeleteCmd_client->async_send_request(request, res_callback);
-        *shared_future_ptr = future.future;
-
-        auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                             [this, json_fun_copy, shared_future_ptr]()
-                                             {
-                                                 if (shared_future_ptr->valid() &&
-                                                     shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                 {
-                                                     DeviceInternalCommunicationErrorProcess(json_fun_copy);
-                                                     return;
-                                                 }
-                                             });
+        }
+        else
+        {
+            DeviceInternalCommunicationErrorProcess(json_fun);
+            return;
+        }
     }
     else
     {
@@ -1758,43 +1724,34 @@ void WSmsgs_Manager::InspectTaskPlanListQueryProcess(const cJSON *json_fun, cons
         robot_msgs::srv::InspectTaskPlanListQuery::Request::SharedPtr request;
         request->id_task_info = value_id_task_info->valuestring;
 
-        cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
-        if (json_fun_copy == nullptr)
-        {
-            RCLCPP_ERROR(this->get_logger(), "copy is null");
-            return;
-        }
+        // cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
+        // if (json_fun_copy == nullptr)
+        // {
+        //     RCLCPP_ERROR(this->get_logger(), "copy is null");
+        //     return;
+        // }
 
-        auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::InspectTaskPlanListQuery>::SharedFuture>();
-        auto res_callback = [this, json_fun_copy, request, shared_future_ptr](rclcpp::Client<robot_msgs::srv::InspectTaskPlanListQuery>::SharedFuture future)
+        auto future = InspectTaskPlanListQuery_client->async_send_request(request);
+        if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready)
         {
-            *shared_future_ptr = future;
             auto response = future.get();
             if (response->task_not_exist)
             {
-                TaskNotExistProcess(json_fun_copy);
+                TaskNotExistProcess(json_fun);
                 return;
             }
             else
             {
-                InspectTaskPlanListQuerySendback(json_fun_copy, response, request);
+                InspectTaskPlanListQuerySendback(json_fun, response, request);
                 RCLCPP_INFO(this->get_logger(), "InspectTaskPlanListQuery successful");
                 return;
             }
-        };
-        auto future = InspectTaskPlanListQuery_client->async_send_request(request, res_callback);
-        *shared_future_ptr = future.future;
-
-        auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                             [this, json_fun_copy, shared_future_ptr]()
-                                             {
-                                                 if (shared_future_ptr->valid() &&
-                                                     shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                 {
-                                                     DeviceInternalCommunicationErrorProcess(json_fun_copy);
-                                                     return;
-                                                 }
-                                             });
+        }
+        else
+        {
+            DeviceInternalCommunicationErrorProcess(json_fun);
+            return;
+        }
     }
     else
     {
@@ -1898,52 +1855,42 @@ void WSmsgs_Manager::InspectTaskPlanAddCmdProcess(const cJSON *json_fun, const c
                 request->express.push_back(data_temp.data);
             }
 
-            cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
-            if (json_fun_copy == nullptr)
-            {
-                RCLCPP_ERROR(this->get_logger(), "copy is null");
-                return;
-            }
+            // cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
+            // if (json_fun_copy == nullptr)
+            // {
+            //     RCLCPP_ERROR(this->get_logger(), "copy is null");
+            //     return;
+            // }
 
-            auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::InspectTaskPlanAddCmd>::SharedFuture>();
-            auto res_callback = [this, json_fun_copy, request, shared_future_ptr](rclcpp::Client<robot_msgs::srv::InspectTaskPlanAddCmd>::SharedFuture future)
+            auto future = InspectTaskPlanAddCmd_client->async_send_request(request);
+            if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready)
             {
-                *shared_future_ptr = future;
                 auto response = future.get();
                 if (response->task_not_exist)
                 {
-                    TaskNotExistProcess(json_fun_copy);
+                    TaskNotExistProcess(json_fun);
                     return;
                 }
                 else
                 {
                     if (response->create_success)
                     {
-                        InspectTaskPlanAddCmdSendback(json_fun_copy, response, request);
+                        InspectTaskPlanAddCmdSendback(json_fun, response, request);
                         RCLCPP_INFO(this->get_logger(), "InspectTaskPlanAddCmd successful");
                         return;
                     }
                     else
                     {
-                        SendTask2DeviceFailProcess(json_fun_copy);
+                        SendTask2DeviceFailProcess(json_fun);
                         return;
                     }
                 }
-            };
-
-            auto future = InspectTaskPlanAddCmd_client->async_send_request(request, res_callback);
-            *shared_future_ptr = future.future;
-
-            auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                 [this, json_fun_copy, shared_future_ptr]()
-                                                 {
-                                                     if (shared_future_ptr->valid() &&
-                                                         shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                     {
-                                                         DeviceInternalCommunicationErrorProcess(json_fun_copy);
-                                                         return;
-                                                     }
-                                                 });
+            }
+            else
+            {
+                DeviceInternalCommunicationErrorProcess(json_fun);
+                return;
+            }
         }
         else
         {
@@ -2010,51 +1957,42 @@ void WSmsgs_Manager::InspectTaskPlanDeleteCmdProcess(const cJSON *json_fun, cons
         robot_msgs::srv::InspectTaskPlanDeleteCmd::Request::SharedPtr request;
         request->id_task_plan = value_id_task_plan->valuestring;
 
-        cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
-        if (json_fun_copy == nullptr)
-        {
-            RCLCPP_ERROR(this->get_logger(), "copy is null");
-            return;
-        }
+        // cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
+        // if (json_fun_copy == nullptr)
+        // {
+        //     RCLCPP_ERROR(this->get_logger(), "copy is null");
+        //     return;
+        // }
 
-        auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::InspectTaskPlanDeleteCmd>::SharedFuture>();
-        auto res_callback = [this, json_fun_copy, shared_future_ptr](rclcpp::Client<robot_msgs::srv::InspectTaskPlanDeleteCmd>::SharedFuture future)
+        auto future = InspectTaskPlanDeleteCmd_client->async_send_request(request);
+        if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready)
         {
-            *shared_future_ptr = future;
             auto response = future.get();
             if (response->task_plan_not_exist)
             {
-                TaskNotExistProcess(json_fun_copy);
+                TaskNotExistProcess(json_fun);
                 return;
             }
             else
             {
                 if (response->deletion_success)
                 {
-                    InspectTaskPlanDeleteCmdSendback(json_fun_copy);
+                    InspectTaskPlanDeleteCmdSendback(json_fun);
                     RCLCPP_INFO(this->get_logger(), "InspectTaskPlanDeleteCmd successful");
                     return;
                 }
                 else
                 {
-                    DeleteTaskFromDeviceFailProcess(json_fun_copy);
+                    DeleteTaskFromDeviceFailProcess(json_fun);
                     return;
                 }
             }
-        };
-        auto future = InspectTaskPlanDeleteCmd_client->async_send_request(request, res_callback);
-        *shared_future_ptr = future.future;
-
-        auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                             [this, json_fun_copy, shared_future_ptr]()
-                                             {
-                                                 if (shared_future_ptr->valid() &&
-                                                     shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                 {
-                                                     DeviceInternalCommunicationErrorProcess(json_fun_copy);
-                                                     return;
-                                                 }
-                                             });
+        }
+        else
+        {
+            DeviceInternalCommunicationErrorProcess(json_fun);
+            return;
+        }
     }
     else
     {
@@ -2107,72 +2045,57 @@ void WSmsgs_Manager::InspectTaskCtrlCmdProcess(const cJSON *json_fun, const cJSO
 
     robot_msgs::srv::CtrlModeQuery::Request::SharedPtr request;
 
-    cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
-    if (json_fun_copy == nullptr)
-    {
-        RCLCPP_ERROR(this->get_logger(), "copy is null");
-        return;
-    }
+    // cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
+    // if (json_fun_copy == nullptr)
+    // {
+    //     RCLCPP_ERROR(this->get_logger(), "copy is null");
+    //     return;
+    // }
 
-    cJSON *cmd_data_copy = cJSON_Duplicate(cmd_data, 1);
-    if (cmd_data_copy == nullptr)
-    {
-        RCLCPP_ERROR(this->get_logger(), "copy is null");
-        return;
-    }
+    // cJSON *cmd_data_copy = cJSON_Duplicate(cmd_data, 1);
+    // if (cmd_data_copy == nullptr)
+    // {
+    //     RCLCPP_ERROR(this->get_logger(), "copy is null");
+    //     return;
+    // }
 
-    auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::CtrlModeQuery>::SharedFuture>();
-    auto res_callback = [this, json_fun_copy, cmd_data_copy, shared_future_ptr](rclcpp::Client<robot_msgs::srv::CtrlModeQuery>::SharedFuture future)
+    auto future = CtrlModeQuery_client->async_send_request(request);
+    if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready)
     {
-        *shared_future_ptr = future;
         auto response = future.get();
         if (response->runtime_ctrl_mode)
         {
-            cJSON *value_ctrl = cJSON_GetObjectItem(cmd_data_copy, "ctrl");
+            cJSON *value_ctrl = cJSON_GetObjectItem(cmd_data, "ctrl");
             if (value_ctrl != NULL)
             {
                 if (strcmp(value_ctrl->valuestring, "e_start") == 0)
                 {
-                    ProcessStartTask(json_fun_copy, cmd_data_copy, value_ctrl);
+                    ProcessStartTask(json_fun, cmd_data, value_ctrl);
                 }
                 else if (strcmp(value_ctrl->valuestring, "e_pause") == 0 ||
                          strcmp(value_ctrl->valuestring, "e_restart") == 0 ||
                          strcmp(value_ctrl->valuestring, "e_stop") == 0)
                 {
-                    ProcessControlTask(json_fun_copy, cmd_data_copy, value_ctrl);
+                    ProcessControlTask(json_fun, cmd_data, value_ctrl);
                 }
                 else
                 {
-                    WrongParamProcess("Param Error: unexpected value_ctrl value.", json_fun_copy);
+                    WrongParamProcess("Param Error: unexpected value_ctrl value.", json_fun);
                 }
             }
             else
             {
-                WrongParamProcess("Param Error: value_ctrl is NULL!", json_fun_copy);
+                WrongParamProcess("Param Error: value_ctrl is NULL!", json_fun);
             }
         }
         else
         {
-            DeviceModeErrorProcess(json_fun_copy);
+            DeviceModeErrorProcess(json_fun);
         }
-    };
-
-    auto future = CtrlModeQuery_client->async_send_request(request, res_callback);
-    *shared_future_ptr = future.future;
-
-    auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                         [this, json_fun_copy, shared_future_ptr]()
-                                         {
-                                             if (shared_future_ptr->valid() &&
-                                                 shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                             {
-                                                 DeviceInternalCommunicationErrorProcess(json_fun_copy);
-                                                 return;
-                                             }
-                                         });
+    }
 }
 
-void WSmsgs_Manager::ProcessStartTask(cJSON *json_fun, const cJSON *cmd_data, cJSON *value_ctrl)
+void WSmsgs_Manager::ProcessStartTask(const cJSON *json_fun, const cJSON *cmd_data, cJSON *value_ctrl)
 {
     cJSON *value_id_task_info = cJSON_GetObjectItem(cmd_data, "id_task_info");
     if (value_id_task_info != NULL)
@@ -2242,7 +2165,7 @@ void WSmsgs_Manager::ProcessStartTask(cJSON *json_fun, const cJSON *cmd_data, cJ
     }
 }
 
-void WSmsgs_Manager::ProcessControlTask(cJSON *json_fun, const cJSON *cmd_data, cJSON *value_ctrl)
+void WSmsgs_Manager::ProcessControlTask(const cJSON *json_fun, const cJSON *cmd_data, cJSON *value_ctrl)
 {
     cJSON *value_task_ticket = cJSON_GetObjectItem(cmd_data, "task_ticket");
     if (value_task_ticket != nullptr)
@@ -2261,52 +2184,39 @@ void WSmsgs_Manager::ProcessControlTask(cJSON *json_fun, const cJSON *cmd_data, 
         request->task_ticket = value_task_ticket->valuestring;
         request->ctrl = value_ctrl->valuestring;
 
-        cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
-        if (json_fun_copy == nullptr)
-        {
-            RCLCPP_ERROR(this->get_logger(), "copy is null");
-            return;
-        }
+        // cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
+        // if (json_fun_copy == nullptr)
+        // {
+        //     RCLCPP_ERROR(this->get_logger(), "copy is null");
+        //     return;
+        // }
 
-        auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::InspectTaskCtrlCmd>::SharedFuture>();
-
-        auto res_callback = [this, json_fun_copy, shared_future_ptr](rclcpp::Client<robot_msgs::srv::InspectTaskCtrlCmd>::SharedFuture future)
+        auto future = InspectTaskCtrlCmd_client->async_send_request(request);
+        if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready)
         {
-            *shared_future_ptr = future;
             auto response = future.get();
-
             if (response->task_instance_not_exist)
             {
-                TaskInstanceNotExistProcess(json_fun_copy);
+                TaskInstanceNotExistProcess(json_fun);
             }
             else
             {
                 if (response->execute_success)
                 {
-                    InspectTaskCtrlCmdSendback(json_fun_copy, response);
+                    InspectTaskCtrlCmdSendback(json_fun, response);
                     RCLCPP_INFO(this->get_logger(), "InspectTaskCtrlCmd control successful");
                 }
                 else
                 {
-                    SendTask2DeviceFailProcess(json_fun_copy);
+                    SendTask2DeviceFailProcess(json_fun);
                 }
             }
-        };
-
-        auto future = InspectTaskCtrlCmd_client->async_send_request(request, res_callback);
-        *shared_future_ptr = future.future;
-
-        // 创建任务控制超时定时器
-        auto task_timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                  [this, json_fun_copy, shared_future_ptr]()
-                                                  {
-                                                      if (shared_future_ptr->valid() &&
-                                                          shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                      {
-                                                          DeviceInternalCommunicationErrorProcess(json_fun_copy);
-                                                          return;
-                                                      }
-                                                  });
+        }
+        else
+        {
+            DeviceInternalCommunicationErrorProcess(json_fun);
+            return;
+        }
     }
     else
     {
@@ -2396,36 +2306,26 @@ void WSmsgs_Manager::InspectTaskInstanceCmdProcess(const cJSON *json_fun, const 
                 }
             }
 
-            cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
-            if (json_fun_copy == nullptr)
-            {
-                RCLCPP_ERROR(this->get_logger(), "copy is null");
-                return;
-            }
+            // cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
+            // if (json_fun_copy == nullptr)
+            // {
+            //     RCLCPP_ERROR(this->get_logger(), "copy is null");
+            //     return;
+            // }
 
-            auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::InspectTaskInstanceQuery>::SharedFuture>();
-            auto res_callback = [this, json_fun_copy, shared_future_ptr](rclcpp::Client<robot_msgs::srv::InspectTaskInstanceQuery>::SharedFuture future)
+            auto future = InspectTaskInstanceQuery_client->async_send_request(request);
+            if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready)
             {
-                *shared_future_ptr = future;
                 auto response = future.get();
-                InspectTaskInstanceCmdSendback(json_fun_copy, response);
+                InspectTaskInstanceCmdSendback(json_fun, response);
                 RCLCPP_INFO(this->get_logger(), "InspectTaskPlanAddCmd successful");
                 return;
-            };
-
-            auto future = InspectTaskInstanceQuery_client->async_send_request(request, res_callback);
-            *shared_future_ptr = future.future;
-
-            auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                 [this, json_fun_copy, shared_future_ptr]()
-                                                 {
-                                                     if (shared_future_ptr->valid() &&
-                                                         shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                     {
-                                                         DeviceInternalCommunicationErrorProcess(json_fun_copy);
-                                                         return;
-                                                     }
-                                                 });
+            }
+            else
+            {
+                DeviceInternalCommunicationErrorProcess(json_fun);
+                return;
+            }
         }
         else
         {
@@ -2520,37 +2420,28 @@ void WSmsgs_Manager::InspectTaskStartOrFinishServerRtProcess(const cJSON *json_f
     if (request->start_or_finish == "start" ||
         request->start_or_finish == "complete")
     {
-        cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
-        if (json_fun_copy == nullptr)
+        // cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
+        // if (json_fun_copy == nullptr)
+        // {
+        //     RCLCPP_ERROR(this->get_logger(), "copy is null");
+        //     return;
+        // }
+
+        auto future = TaskStartOrFinishResponse_client->async_send_request(request);
+        if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready)
         {
-            RCLCPP_ERROR(this->get_logger(), "copy is null");
-            return;
-        }
-        auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::TaskStartOrFinishResponse>::SharedFuture>();
-        auto res_callback = [this, json_fun_copy, shared_future_ptr](rclcpp::Client<robot_msgs::srv::TaskStartOrFinishResponse>::SharedFuture future)
-        {
-            *shared_future_ptr = future;
             auto response = future.get();
             if(!response->task_ticket_exist)
             {
-                RequestResourceNotExistProcess(json_fun_copy);
+                RequestResourceNotExistProcess(json_fun);
                 return;
             }    
-        };
-
-        auto future = TaskStartOrFinishResponse_client->async_send_request(request, res_callback);
-        *shared_future_ptr = future.future;
-
-        auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                                [this, json_fun_copy, shared_future_ptr]()
-                                                {
-                                                    if (shared_future_ptr->valid() &&
-                                                        shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                    {
-                                                        DeviceInternalCommunicationErrorProcess(json_fun_copy);
-                                                        return;
-                                                    }
-                                                });
+        }
+        else
+        {
+            DeviceInternalCommunicationErrorProcess(json_fun);
+            return;
+        }
     }
     else
     {
@@ -2619,36 +2510,26 @@ void WSmsgs_Manager::RobotInfoQueryProcess(const cJSON *json_fun)
         RCLCPP_INFO(this->get_logger(), "RobotInfoQuery Service not available, waiting again...");
     }
 
-    cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
-    if (json_fun_copy == NULL)
-    {
-        RCLCPP_ERROR(this->get_logger(), "copy is null");
-        return;
-    }
+    // cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
+    // if (json_fun_copy == NULL)
+    // {
+    //     RCLCPP_ERROR(this->get_logger(), "copy is null");
+    //     return;
+    // }
 
-    auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::RobotInfoQuery>::SharedFuture>();
-
-    auto res_callback = [this, json_fun_copy, shared_future_ptr](rclcpp::Client<robot_msgs::srv::RobotInfoQuery>::SharedFuture future)
+    auto future = RobotInfoQuery_client->async_send_request(request);
+    if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready)
     {
-        *shared_future_ptr = future;
         auto response = future.get();
-        RobotInfoQuerySendback(json_fun_copy, response);
+        RobotInfoQuerySendback(json_fun, response);
         RCLCPP_INFO(this->get_logger(), "res->succuss is true");
         return;
-    };
-
-    auto future = RobotInfoQuery_client->async_send_request(request, res_callback);
-    *shared_future_ptr = future.future;
-    auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                         [this, json_fun_copy, shared_future_ptr]()
-                                         {
-                                             if (shared_future_ptr->valid() &&
-                                                 shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                             {
-                                                 DeviceInternalCommunicationErrorProcess(json_fun_copy);
-                                                 return;
-                                             }
-                                         });
+    }
+    else
+    {
+        DeviceInternalCommunicationErrorProcess(json_fun);
+        return;
+    }
 }
 
 void WSmsgs_Manager::RobotInfoQuerySendback(const cJSON *json_fun, const robot_msgs::srv::RobotInfoQuery::Response::SharedPtr response)
@@ -2778,48 +2659,34 @@ void WSmsgs_Manager::SystemTimeSyncCmdProcess(const cJSON *json_fun, const cJSON
             }
             RCLCPP_INFO(this->get_logger(), "SystemTimeSyncCmd Service not available, waiting again...");
         }
-        cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
-        if (json_fun_copy == nullptr)
+
+        // cJSON *json_fun_copy = cJSON_Duplicate(json_fun, 1);
+        // if (json_fun_copy == nullptr)
+        // {
+        //     RCLCPP_ERROR(this->get_logger(), "copy is null");
+        //     return;
+        // }
+
+        auto future = SystemTimeSyncCmd_client->async_send_request(request);
+        if (future.wait_for(std::chrono::milliseconds(100)) == std::future_status::ready)
         {
-            RCLCPP_ERROR(this->get_logger(), "copy is null");
-            return;
-        }
-        auto shared_future_ptr = std::make_shared<rclcpp::Client<robot_msgs::srv::SystemTimeSyncCmd>::SharedFuture>();
-        auto res_callback = [this, json_fun_copy, shared_future_ptr](rclcpp::Client<robot_msgs::srv::SystemTimeSyncCmd>::SharedFuture future)
-        {
-            *shared_future_ptr = future;
-            if (json_fun_copy != nullptr)
+            auto response = future.get();
+            if (response->sync_time_success)
             {
-                auto response = future.get();
-                if (response->sync_time_success)
-                {
-                    SystemTimeSyncCmdSendback(json_fun_copy, response->system_time_sync.c_str());
-                    return;
-                }
-                else
-                {
-                    DeviceOperationFailedProcess(json_fun_copy);
-                    return;
-                }
+                SystemTimeSyncCmdSendback(json_fun, response->system_time_sync.c_str());
+                return;
             }
             else
             {
-                RCLCPP_ERROR(this->get_logger(), "json_fun is null");
+                DeviceOperationFailedProcess(json_fun);
                 return;
             }
-        };
-        auto future = SystemTimeSyncCmd_client->async_send_request(request, res_callback);
-        *shared_future_ptr = future.future;
-        auto timer = this->create_wall_timer(std::chrono::milliseconds(500),
-                                             [this, json_fun_copy, shared_future_ptr]()
-                                             {
-                                                 if (shared_future_ptr->valid() &&
-                                                     shared_future_ptr->wait_for(std::chrono::seconds(1)) == std::future_status::timeout)
-                                                 {
-                                                     DeviceInternalCommunicationErrorProcess(json_fun_copy);
-                                                     return;
-                                                 }
-                                             });
+        }
+        else
+        {
+            DeviceInternalCommunicationErrorProcess(json_fun);
+            return;
+        }
     }
     else
     {

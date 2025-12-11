@@ -79,8 +79,8 @@ public:
     void InspectTaskInfoCmdProcess(const cJSON *json_fun, const cJSON *cmd_data);       // 巡检任务管理任务信息类指令处理
     void InspectTaskPlanCmdProcess(const cJSON *json_fun, const cJSON *cmd_data);       // 巡检任务管理任务计划类指令处理
     void InspectTaskCtrlCmdProcess(const cJSON *json_fun, const cJSON *cmd_data);       // 巡检任务管理任务控制类指令处理
-    void ProcessStartTask(cJSON *json_fun, const cJSON *cmd_data, cJSON *value_ctrl);   // 处理启动任务的子函数
-    void ProcessControlTask(cJSON *json_fun, const cJSON *cmd_data, cJSON *value_ctrl); // 处理控制任务的子函数
+    void ProcessStartTask(const cJSON *json_fun, const cJSON *cmd_data, cJSON *value_ctrl);   // 处理启动任务的子函数
+    void ProcessControlTask(const cJSON *json_fun, const cJSON *cmd_data, cJSON *value_ctrl); // 处理控制任务的子函数
     void InspectTaskInstanceCmdProcess(const cJSON *json_fun, const cJSON *cmd_data);   // 巡检任务管理任务实例类指令处理
 
     void InspectTaskInfoListQueryProcess(const cJSON *json_fun, const cJSON *cmd_data);    // 查询巡检任务列表指令处理
@@ -169,7 +169,9 @@ private:
     rclcpp::Client<robot_msgs::srv::SystemTimeSyncCmd>::SharedPtr SystemTimeSyncCmd_client;
 
     // 回调组
-
+    rclcpp::CallbackGroup::SharedPtr robot_cb_group_;
+    rclcpp::CallbackGroup::SharedPtr task_cb_group_;
+    rclcpp::CallbackGroup::SharedPtr systime_cb_group_;
     // Spin逻辑
     std::thread spinner_thread_;
 
