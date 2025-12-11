@@ -18,14 +18,14 @@ int main(int argc, char** argv)
     
 
     // 调用 NodeSpinnerStartup()，保持原逻辑
-    task_manager_client->NodeSpinnerStartup();
-    task_file_manager->NodeSpinnerStartup();
-    task_execute->NodeSpinnerStartup();
+    rclcpp::executors::MultiThreadedExecutor executor;
+
+    executor.add_node(task_manager_client);
+    executor.add_node(task_file_manager);
+    executor.add_node(task_execute);
 
     // 等待 spinning 线程完成（相当于 ROS1 的 ros::waitForShutdown()）
-    task_manager_client->joinSpinnerThread();
-    task_file_manager->joinSpinnerThread();
-    task_execute->joinSpinnerThread();
+    executor.spin();
     rclcpp::shutdown();
 
     return EXIT_SUCCESS;
